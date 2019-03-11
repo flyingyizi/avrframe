@@ -14,8 +14,8 @@ CFLAGS        = -g -Wall $(OPTIMIZE) $(DEFS)
 # ALL_CFLAGS 		= -mmcu=$(MCU)  -D F_CPU=$(F_CPU)  -I. $(CFLAGS) 
 # ALL_CXXFLAGS 	= -mmcu=$(MCU)  -D F_CPU=$(F_CPU)  -I. $(CFLAGS) -std=c++98 
 
-ALL_CFLAGS 		= -mmcu=$(MCU)   -D F_CPU=$(F_CPU) -I. $(CFLAGS) -Wa,-adhlns=$(<:.c=.lst)
-ALL_CXXFLAGS 	= -mmcu=$(MCU)   -D F_CPU=$(F_CPU) -I. $(CFLAGS) -std=c++98 -Wa,-adhlns=$(<:.cpp=.lst)
+ALL_CFLAGS 		= -mmcu=$(MCU)   -D F_CPU=$(F_CPU) -I. $(CFLAGS)
+ALL_CXXFLAGS 	= -mmcu=$(MCU)   -D F_CPU=$(F_CPU) -I. $(CFLAGS) -std=c++98
 ALL_ASFLAGS 	= -mmcu=$(MCU)   -D F_CPU=$(F_CPU) -I. -x assembler-with-cpp $(ASFLAGS)
 
 
@@ -49,41 +49,66 @@ BIN_DIR=Debug/bin
 #获取当前目录下的c文件集，放在变量CUR_SOURCE中
 CUR_CSOURCE=${wildcard *.c}
 CUR_CPPSOURCE=${wildcard *.cpp}
-#将对应的c文件名转为o文件后放在下面的CUR_OBJS变量中
-CUR_OBJS=${patsubst %.c, %.o, $(CUR_CSOURCE)}
-CUR_OBJS +=${patsubst %.cpp, %.o, $(CUR_CPPSOURCE)}
+
+CUR_COBJS := $(addsuffix .o,$(addprefix $(ROOT_DIR)/$(OBJS_DIR)/,$(basename $(notdir $(CUR_CSOURCE)))))
+CUR_CPPOBJS := $(addsuffix .o,$(addprefix $(ROOT_DIR)/$(OBJS_DIR)/,$(basename $(notdir $(CUR_CPPSOURCE)))))
+DEPENDS := $(addsuffix .d,$(CUR_COBJS))
+
+ifneq (v$(V),v1)
+hide?=@
+else
+hide?=
+endif
+
 #将以下变量导出到子shell中，本次相当于导出到子目录下的makefile中
 export CC ALL_CFLAGS ALL_CXXFLAGS  ALL_ASFLAGS LDFLAGS  BIN OBJS_DIR BIN_DIR ROOT_DIR  \
-       COFFCONVERT \  OBJCOPY \ FORMAT
+       hide  COFFCONVERT \  OBJCOPY \ FORMAT
 
 #注意这里的顺序，需要先执行SUBDIRS最后才能是DEBUG
-all:CHECKDIR  $(SUBDIRS) $(CUR_OBJS) DEBUG
-CHECKDIR:
-	mkdir -p $(OBJS_DIR)  $(BIN_DIR)
+all:CHECKDIR  $(SUBDIRS) $(CUR_COBJS) $(CUR_CPPOBJS) DEBUG
+
+CHECKDIR: $(OBJS_DIR)  $(BIN_DIR)
+$(OBJS_DIR)  $(BIN_DIR): ; mkdir -p $@
+
 #递归执行子目录下的makefile文件，这是递归执行的关键
 $(SUBDIRS):ECHO
 	make -C $@
 DEBUG:ECHO
-	#直接去debug目录下执行makefile文件
+#直接去debug目录下执行makefile文件
 	make -C debug
 ECHO:
 	@echo $(SUBDIRS)
-#将c文件编译为o文件，并放在指定放置目标文件的目录中即OBJS_DIR
-$(CUR_OBJS):%.o:%.c
-	$(CC) -c  $(ALL_CFLAGS)   $^ -o $(ROOT_DIR)/$(OBJS_DIR)/$@
 
-%.o:%.cpp
-	$(CC) -c  $(ALL_CXXFLAGS)   $^ -o $(ROOT_DIR)/$(OBJS_DIR)/$@
 
+define make-cmd-cc
+$2 : $1
+	$$(info CC $$<)
+	$$(hide) $$(CC) $$(ALL_CFLAGS)  -Wa,-adhlns=$$(<:.c=.lst) -MMD -MT $$@ -MF $$@.d -c -o $$@ $$<   
+endef
+ 
+$(foreach afile,$(CUR_CSOURCE),\
+    $(eval $(call make-cmd-cc,$(afile),\
+        $(addsuffix .o,$(addprefix $(ROOT_DIR)/$(OBJS_DIR)/,$(basename $(notdir $(afile))))))))
+
+define make-cmd-cc-cpp
+$2 : $1
+	$$(info CC $$<)
+	$$(hide) $$(CC) $$(ALL_CXXFLAGS)  -Wa,-adhlns=$(<:.cpp=.lst) -MMD -MT $$@ -MF $$@.d -c -o $$@ $$<   
+endef
+ 
+$(foreach afile,$(CUR_CPPSOURCE),\
+    $(eval $(call make-cmd-cc-cpp,$(afile),\
+        $(addsuffix .o,$(addprefix $(ROOT_DIR)/$(OBJS_DIR)/,$(basename $(notdir $(afile))))))))
 
 
 
 clean:
 	rm -rf $(OBJS_DIR)/*.o
+	rm -rf $(OBJS_DIR)/*.o.d
 	rm -rf $(BIN_DIR)/*
-	rm *.lst   
+	rm -rf *.lst   
 
-
+-include $(DEPENDS)
 
 # #############################################################
 

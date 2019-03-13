@@ -14,7 +14,7 @@ $(SUBDIRS):ECHO
 define make-cmd-cc
 $2 : $1
 	$$(info CC $$<)
-	$$(hide) $$(CC) $$(ALL_CFLAGS)  -Wa,-adhlns=$$(<:.c=.lst) -MMD -MT $$@ -MF $$@.d -c -o $$@ $$<   
+	$$(hide) $$(CC) $$(ALL_CFLAGS)  -Wa,-adhlns=$$(ROOT_DIR)/$$(OBJS_DIR)/$$(<:.c=.lst) -MMD -MT $$@ -MF $$@.d -c -o $$@ $$<   
 endef
  
 $(foreach afile,$(CUR_CSOURCE),\

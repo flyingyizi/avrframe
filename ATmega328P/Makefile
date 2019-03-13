@@ -2,7 +2,7 @@
 #最终bin文件的名字，可以更改为自己需要的
 BIN=myapp
 MCU     ?= atmega328p
-F_CPU   ?= 16000000
+F_CPU   = 16000000
 # Output format. (can be srec, ihex, binary)
 FORMAT = ihex
 
@@ -93,18 +93,17 @@ $(foreach afile,$(CUR_CSOURCE),\
 define make-cmd-cc-cpp
 $2 : $1
 	$$(info CC $$<)
-	$$(hide) $$(CC) $$(ALL_CXXFLAGS)  -Wa,-adhlns=$(<:.cpp=.lst) -MMD -MT $$@ -MF $$@.d -c -o $$@ $$<   
+	$$(hide) $$(CC) $$(ALL_CXXFLAGS)  -Wa,-adhlns=$$(<:.cpp=.lst) -MMD -MT $$@ -MF $$@.d -c -o $$@ $$<   
 endef
  
 $(foreach afile,$(CUR_CPPSOURCE),\
     $(eval $(call make-cmd-cc-cpp,$(afile),\
         $(addsuffix .o,$(addprefix $(ROOT_DIR)/$(OBJS_DIR)/,$(basename $(notdir $(afile))))))))
 
-
-
 clean:
 	rm -rf $(OBJS_DIR)/*.o
 	rm -rf $(OBJS_DIR)/*.o.d
+	rm -rf $(OBJS_DIR)/*.lst
 	rm -rf $(BIN_DIR)/*
 	rm -rf *.lst   
 

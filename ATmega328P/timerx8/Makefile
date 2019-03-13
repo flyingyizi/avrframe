@@ -7,7 +7,7 @@ CUR_CPPSOURCE=${wildcard *.cpp}
 CUR_COBJS := $(addsuffix .o,$(addprefix $(ROOT_DIR)/$(OBJS_DIR)/,$(basename $(notdir $(CUR_CSOURCE)))))
 DEPENDS := $(addsuffix .d,$(CUR_COBJS))
 
-all:$(SUBDIRS) $(CUR_COBJS)
+all:$(SUBDIRS) $(CUR_COBJS)  
 $(SUBDIRS):ECHO
 	make -C $@
 

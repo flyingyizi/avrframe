@@ -2,6 +2,7 @@
 #include <avr/io.h>
 
 #include "../serial/serial.h"
+#include "print.h"
 #include "report.h"
 #include <avr/pgmspace.h>
 

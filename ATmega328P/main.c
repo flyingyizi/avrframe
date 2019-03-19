@@ -9,7 +9,7 @@
 #include "util/report.h"
 #include <avr/pgmspace.h>
 
-#include "timerx8/timertest.h" // include timer function library (timing, PWM, etc)
+#include "extint/extinttest.h" 
 
 // Line buffer size from the serial input stream to be executed.
 // NOTE: Not a problem except for extreme cases, but the line buffer size can be too small
@@ -189,10 +189,10 @@ int main()
   // Initialize system upon power-up.
   serial_init(); // Setup serial baud rate and interrupts
   // ;
-  timer1Init();  // initialize the timer system
+  // timer1Init();  // initialize the timer system
   sei();         // Enable interrupts
 
-  timer1Test();
+  extintTest();
 
   // Write your code here
   // Start main loop. Processes program inputs and executes them.

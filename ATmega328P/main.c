@@ -9,7 +9,7 @@
 #include "util/report.h"
 #include <avr/pgmspace.h>
 
-#include "extint/extinttest.h" 
+#include "extint/pcinttest.h" 
 
 // Line buffer size from the serial input stream to be executed.
 // NOTE: Not a problem except for extreme cases, but the line buffer size can be too small
@@ -192,13 +192,14 @@ int main()
   // timer1Init();  // initialize the timer system
   sei();         // Enable interrupts
 
-  extintTest();
+  pcintTest();
+
 
   // Write your code here
   // Start main loop. Processes program inputs and executes them.
   //protocol_main_loop();
-  while (1)
-    ;
+  // while (1)
+  //   ;
 
   return 0;
 }

@@ -3,9 +3,9 @@
 //
 // File Name	: 'pcint.c'
 // Title		: pin change Interrupt function library
-// Author		: tuxueqing - Copyright (C) 2002-2004
+// Author		: flyingyizi - Copyright (C) 2002-2004
 // Created		: 03/10/2019
-// Revised		: 
+// Revised		:
 // Version		: 1.0
 // Target MCU	: Atmel AVR Series
 // Editor Tabs	: 4
@@ -30,183 +30,293 @@
 
 #include "pcint.h"
 
-// Global variables
-// The pin change interrupt PCI2 will trigger if any enabled PCINT23..16 pin toggles. The pin change
-// interrupt PCI1 will trigger if any enabled PCINT14..8 pin toggles. The pin change interrupt PCI0
-// will trigger if any enabled PCINT7..0 pin toggles.
 typedef void (*voidFuncPtr)(void);
-#ifdef 	PCINT0_vect
-uint8_t  pcint0Attachs = 0x00;  //(PCINT7~PCINT0)
-volatile static voidFuncPtr PinChange0IntFunc[PCINT7+1];
-#endif
-#ifdef 	PCINT1_vect
-volatile static voidFuncPtr PinChange1IntFunc[PCINT14+1];
-#endif
-#ifdef 	PCINT2_vect
-volatile static voidFuncPtr PinChange2IntFunc[PCINT23+1];
-#endif
 
+// Global variables
+// PIN CHANGE的默认初始为1状态，因此注意在代码中需要初始化PORTXn设置初始状态为pull up
+volatile static uint16_t portbhistoryH = 0xFFFF;  //存放      ~ PORTD 的bit变更
+volatile static uint16_t portbhistoryL = 0xFFFF;  //存放PORTC ~ PORTB 的bit变更
+volatile static voidFuncPtr PinChangeIntFunc[PCINTR_LEN];
 
-// functions
-
-//! initializes pin change library for PCINT7~PCINT0
-#ifdef 	PCINT0_vect
-void pcint0Init(void)
-{	
-	// detach all user functions from interrupts
-	uint8_t intNum,len;
-	len = sizeof(PinChange0IntFunc) / sizeof(voidFuncPtr);
-
-	for( intNum=0; intNum < len; intNum++)
-		PinChange0IntFunc[intNum]=0;
-}
-//! Configure pin change interrupt (PCINT7~PCINT0) trigger
-// NOTE: it should be called after pcintAttach at all !!!
-// interruptNums: group of PCINT7~PCINT0.
-//                e.g., (_BV(PCINT3) |_BV(PCINT4) |_BV(PCINT2)  )	
-void pcint0Enable(uint8_t interruptNums)
-{ 
-    //e.g. PCMSK0 |= (1 << PCINT0);   // 设置 PCINT0 来测量状态变化并产生中断
-	PCICR |=( _BV(PCIE0) )	;
-	PCMSK0 |= interruptNums;         
-}
-//! Disables pin change interrupt (PCINT7~PCINT0) trigger.
-// interruptNums: group of PCINT7~PCINT0.
-//                e.g., (_BV(PCINT3) |_BV(PCINT4) |_BV(PCINT2)  )	
-void pcint0Disable(uint8_t interruptNums)
+/*! \brief This function enables the external pin change interrupt.
+ *         
+ *  \param PCINT_NO	The pin change interrupt which has to be enabled. refer PCINTRx  macro define
+ *  \param userHandler The pin change interrupt reltated customer func. if it is 0, it means no attatch func for the pin
+ */
+void enable_pcinterrupt(uint8_t PCINT_NO,void (*userHandler)(void))
 {
-  PCMSK0 &= ~interruptNums;  // Disable specific pins of the Pin Change Interrupt
-  PCICR &= ~( _BV(PCIE0) );  // Disable Pin Change Interrupt
+    uint8_t valid=1;
+    if (PCINT_NO >= 0 && PCINT_NO <= 7)
+    {
+        PCICR = (PCICR & (~(1 << PCIE0))) | (1 << PCIE0);
+        switch (PCINT_NO)
+        {
+        case 0:
+            PCMSK0 |= (1 << PCINT0);
+            break;
+        case 1:
+            PCMSK0 |= (1 << PCINT1);
+            break;
+        case 2:
+            PCMSK0 |= (1 << PCINT2);
+            break;
+        case 3:
+            PCMSK0 |= (1 << PCINT3);
+            break;
+        case 4:
+            PCMSK0 |= (1 << PCINT4);
+            break;
+        case 5:
+            PCMSK0 |= (1 << PCINT5);
+            break;
+        case 6:
+            PCMSK0 |= (1 << PCINT6);
+            break;
+        case 7:
+            PCMSK0 |= (1 << PCINT7);
+            break;
+        default:
+            valid=0;
+            break;
+        }
+    }
+    else if (PCINT_NO >= 8 && PCINT_NO <= 15)
+    {
+        PCICR = (PCICR & (~(1 << PCIE1))) | (1 << PCIE1);
+        switch (PCINT_NO)
+        {
+        case 8:
+            PCMSK1 |= (1 << PCINT8);
+            break;
+        case 9:
+            PCMSK1 |= (1 << PCINT9);
+            break;
+        case 10:
+            PCMSK1 |= (1 << PCINT10);
+            break;
+        case 11:
+            PCMSK1 |= (1 << PCINT11);
+            break;
+        case 12:
+            PCMSK1 |= (1 << PCINT12);
+            break;
+        case 13:
+            PCMSK1 |= (1 << PCINT13);
+            break;
+        case 14:
+            PCMSK1 |= (1 << PCINT14);
+            break;
+        #ifdef PCINT15
+        case 15:
+            PCMSK1 |= (1 << PCINT15);
+            break;
+        #endif
+        default:
+            valid=0;
+            break;
+        }
+    }
+    else
+    {
+        PCICR = (PCICR & (~(1 << PCIE2))) | (1 << PCIE2);
+        switch (PCINT_NO)
+        {
+        case 16:
+            PCMSK2 |= (1 << PCINT16);
+            break;
+        case 17:
+            PCMSK2 |= (1 << PCINT17);
+            break;
+        case 18:
+            PCMSK2 |= (1 << PCINT18);
+            break;
+        case 19:
+            PCMSK2 |= (1 << PCINT19);
+            break;
+        case 20:
+            PCMSK2 |= (1 << PCINT20);
+            break;
+        case 21:
+            PCMSK2 |= (1 << PCINT21);
+            break;
+        case 22:
+            PCMSK2 |= (1 << PCINT22);
+            break;
+        case 23:
+            PCMSK2 |= (1 << PCINT23);
+            break;
+        default:
+            valid=0;
+            break;
+        }
+    }
+
+    if (valid !=0) {
+        PinChangeIntFunc[PCINT_NO]=userHandler;
+    }
 }
 
-//! Attach a user function to an pin change interrupt
-//  interruptNum: valid PCINT7~PCINT0
-void pcint0Attach(uint8_t interruptNum, void (*userHandler)(void) )
+/*! \brief This function disables the external pin change interrupt.
+ *         
+ *  \param PCINT_NO	The pin change interrupt which has to be disabled.
+ */
+void disable_pcinterrupt(uint8_t PCINT_NO)
 {
-		PinChange0IntFunc[interruptNum] = userHandler;
-}
-void pcint0Detach(uint8_t interruptNum )
-{
-		PinChange0IntFunc[interruptNum] = 0;
+    uint8_t valid=1;
+    switch (PCINT_NO)
+    {
+    case 0:
+        PCMSK0 = (PCMSK0 & (~(1 << PCINT0)));
+        break;
+    case 1:
+        PCMSK0 = (PCMSK0 & (~(1 << PCINT1)));
+        break;
+    case 2:
+        PCMSK0 = (PCMSK0 & (~(1 << PCINT2)));
+        break;
+    case 3:
+        PCMSK0 = (PCMSK0 & (~(1 << PCINT3)));
+        break;
+    case 4:
+        PCMSK0 = (PCMSK0 & (~(1 << PCINT4)));
+        break;
+    case 5:
+        PCMSK0 = (PCMSK0 & (~(1 << PCINT5)));
+        break;
+    case 6:
+        PCMSK0 = (PCMSK0 & (~(1 << PCINT6)));
+        break;
+    case 7:
+        PCMSK0 = (PCMSK0 & (~(1 << PCINT7)));
+        break;
+    case 8:
+        PCMSK1 = (PCMSK1 & (~(1 << PCINT8)));
+        break;
+    case 9:
+        PCMSK1 = (PCMSK1 & (~(1 << PCINT9)));
+        break;
+    case 10:
+        PCMSK1 = (PCMSK1 & (~(1 << PCINT10)));
+        break;
+    case 11:
+        PCMSK1 = (PCMSK1 & (~(1 << PCINT11)));
+        break;
+    case 12:
+        PCMSK1 = (PCMSK1 & (~(1 << PCINT12)));
+        break;
+    case 13:
+        PCMSK1 = (PCMSK1 & (~(1 << PCINT13)));
+        break;
+    case 14:
+        PCMSK1 = (PCMSK1 & (~(1 << PCINT14)));
+        break;
+    #ifdef PCINT15
+    case 15:
+        PCMSK1 = (PCMSK1 & (~(1 << PCINT15)));
+        break;
+    #endif
+    case 16:
+        PCMSK2 = (PCMSK2 & (~(1 << PCINT16)));
+        break;
+    case 17:
+        PCMSK2 = (PCMSK2 & (~(1 << PCINT17)));
+        break;
+    case 18:
+        PCMSK2 = (PCMSK2 & (~(1 << PCINT18)));
+        break;
+    case 19:
+        PCMSK2 = (PCMSK2 & (~(1 << PCINT19)));
+        break;
+    case 20:
+        PCMSK2 = (PCMSK2 & (~(1 << PCINT20)));
+        break;
+    case 21:
+        PCMSK2 = (PCMSK2 & (~(1 << PCINT21)));
+        break;
+    case 22:
+        PCMSK2 = (PCMSK2 & (~(1 << PCINT22)));
+        break;
+    case 23:
+        PCMSK2 = (PCMSK2 & (~(1 << PCINT23)));
+        break;
+    default:
+        valid=0;
+        break;
+    }
+
+    //清除可能挂载过的自定义函数
+    if (valid !=0) {
+        PinChangeIntFunc[PCINT_NO]=0;
+    }
+
+    if (PCMSK0 == 0x00)
+    {
+        PCICR = (PCICR & (~(1 << PCIE0)));
+    }
+    else if (PCMSK1 == 0x00)
+    {
+        PCICR = (PCICR & (~(1 << PCIE1)));
+    }
+    else if (PCMSK2 == 0x00)
+    {
+        PCICR = (PCICR & (~(1 << PCIE2)));
+    }
 }
 
-//! Interrupt handler for INT0
+
+#if defined(PCINT0_vect)
 ISR(PCINT0_vect)
 {
-	// if a user function is defined, execute it
-	uint8_t i,len;
-	len = sizeof(PinChange0IntFunc) / sizeof(voidFuncPtr);
-	for ( i=0; i < len;i++) {
-	     if(PinChange0IntFunc[i])
-		      PinChange0IntFunc[i]();
-	}
-}
+    uint8_t  diff=0;
+    uint16_t changedbitsL=0,changedbitsH=0 ; //设立一个无符号16位整数来记录寄存器的变化
 
-#endif
+    //每个port存储8位
+    diff = PINB ^ (portbhistoryL & 0xff);
+    changedbitsL = diff;
+    diff = PINC ^ ((portbhistoryL & 0xff00)>> 8) ;
+    changedbitsL |= diff<<8;
+    diff = PIND ^ (portbhistoryH & 0xff) ;
+    changedbitsH = diff;
 
-//! initializes pin change library for PCINT14~PCINT8
-#ifdef 	PCINT1_vect
-void pcint1Init(void)
-{	
-	// detach all user functions from interrupts
-	uint8_t intNum,len;
-	len = sizeof(PinChange1IntFunc) / sizeof(voidFuncPtr);
-	for( intNum=0; intNum < len; intNum++)
-		PinChange1IntFunc[intNum]=0;
-}
-//! Configure pin change interrupt (PCINT14~PCINT8) trigger
-// NOTE: it should be called after pcintAttach at all !!!
-// configuration: group of PCINT14~PCINT8.
-//                e.g., (_BV(PCINT8) |_BV(PCINT9) |_BV(PCINT12)  )	
-void pcint1Enable(uint8_t interruptNums)
-{
-	PCICR |=( _BV(PCIE1) )	;
-	PCMSK1 |= interruptNums;         
-}
-//! Disables pin change interrupt (PCINT14~PCINT8) trigger.
-// interruptNums: group of PCINT14~PCINT8.
-//                e.g., (_BV(PCINT8) |_BV(PCINT9) |_BV(PCINT12)  )	
-void pcint1Disable(uint8_t interruptNums)
-{
-  PCMSK1 &= ~interruptNums;  // Disable specific pins of the Pin Change Interrupt
-  PCICR &= ~( _BV(PCIE1) );  // Disable Pin Change Interrupt
-}
-//! Attach a user function to an pin change interrupt
-//  interruptNum: valid PCINT7~PCINT0
-void pcint1Attach(uint8_t interruptNum, void (*userHandler)(void) )
-{
-		PinChange1IntFunc[interruptNum] = userHandler;
-}
-void pcint1Detach(uint8_t interruptNum )
-{
-		PinChange1IntFunc[interruptNum] = 0;
-}
+    //更新portbhistory
+    portbhistoryL = (PINC<<8) |(PINB) ;
+    portbhistoryH = PIND ;
 
-//! Interrupt handler for INT1
-ISR(PCINT1_vect)
-{
-	// if a user function is defined, execute it
-	uint8_t i,len;
-	len = sizeof(PinChange1IntFunc) / sizeof(voidFuncPtr);
+    // if a user function is defined, execute it
+    #define bit(n) (1 << (n)) 
+    #define bit_istrue(x,mask) ((x & mask) != 0)
+    #define min(a,b) (((a) < (b)) ? (a) : (b))
 
-	for ( i=0;i<len;i++) {
-	     if(PinChange1IntFunc[i])
-		      PinChange1IntFunc[i]();
-	}
+    uint8_t i, len;
+    //最多记录16+16 bit变化
+    if (changedbitsL !=0 ) {
+        len = min(sizeof(PinChangeIntFunc) / sizeof(voidFuncPtr), 16 );
+        for (i = 0; i < len; i++)
+        {
+            if ( bit_istrue(changedbitsL, bit(i) )  && PinChangeIntFunc[i]  )
+                PinChangeIntFunc[i]();
+        }
+    }
+    if (changedbitsH !=0) {
+        len = (sizeof(PinChangeIntFunc) / sizeof(voidFuncPtr) );
+        for (i = 16; i < len; i++)
+        {
+            if ( bit_istrue(changedbitsH, bit(i-16) )  && PinChangeIntFunc[i]  )
+                PinChangeIntFunc[i]();
+        }
+    }
+
 }
 #endif
 
-
-#ifdef PCINT2_vect
-void pcint2Init(void)
-{	
-	// detach all user functions from interrupts
-	uint8_t intNum,len;
-	len = sizeof(PinChange2IntFunc) / sizeof(voidFuncPtr);
-
-	for( intNum=0; intNum < len; intNum++)
-		PinChange2IntFunc[intNum]=0;
-}
-//! Configure pin change interrupt (PCINT23~PCINT16) trigger
-// NOTE: it should be called after pcintAttach at all !!!
-// interruptNums: group of PCINT23~PCINT16.
-//                e.g., (_BV(PCINT18) |_BV(PCINT19)  )	
-void pcint2Enable(uint8_t interruptNums)
-{
-	PCICR |=( _BV(PCIE2) )	;
-	PCMSK2 |= interruptNums;         
-}
-//! Disables pin change interrupt (PCINT23~PCINT16) trigger.
-// interruptNums: group of PCINT23~PCINT16.
-//                e.g., (_BV(PCINT18) |_BV(PCINT19)  )	
-void pcint2Disable(uint8_t interruptNums)
-{
-  PCMSK2 &= ~interruptNums;  // Disable specific pins of the Pin Change Interrupt
-  PCICR &= ~( _BV(PCIE2) );  // Disable Pin Change Interrupt
-}
-
-//! Attach a user function to an pin change interrupt
-//  interruptNum: valid PCINT7~PCINT0
-void pcint2Attach(uint8_t interruptNum, void (*userHandler)(void) )
-{
-		PinChange2IntFunc[interruptNum] = userHandler;
-}
-void pcint2Detach(uint8_t interruptNum )
-{
-		PinChange2IntFunc[interruptNum] = 0;
-}
-
-//! Interrupt handler for INT2
-ISR(PCINT2_vect)
-{
-	// if a user function is defined, execute it
-	uint8_t i,len;
-	len = sizeof(PinChange2IntFunc) / sizeof(voidFuncPtr);
-
-	for ( i=0;i<len;i++) {
-	     if(PinChange2IntFunc[i])
-		      PinChange2IntFunc[i]();
-	}
-}
+#if defined(PCINT1_vect)
+ISR(PCINT1_vect, ISR_ALIASOF(PCINT0_vect));
 #endif
 
+#if defined(PCINT2_vect)
+ISR(PCINT2_vect, ISR_ALIASOF(PCINT0_vect));
+#endif
+
+#if defined(PCINT3_vect)
+ISR(PCINT3_vect, ISR_ALIASOF(PCINT0_vect));
+#endif

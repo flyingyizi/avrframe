@@ -26,6 +26,17 @@
 
 #include "pcint.h"		// include external interrupt library
 
+//example
+// int main()
+// {
+//   // Initialize system upon power-up.
+//   serial_init(); // Setup serial baud rate and interrupts
+//   sei();         // Enable interrupts
+//   pcintTest();
+//   return 0;
+// }
+
+
 // global variables
 volatile  uint16_t Int0Count;
 volatile uint16_t Int1Count;
@@ -44,30 +55,21 @@ void pcintTest(void)
 
 	// print a little intro message so we know things are working
 	printPgmString(PSTR("\r\n\n\nWelcome to the pin change Interrupt library test program!\r\n"));
-	
+
 	// initialize the external interrupt library
-	printPgmString(PSTR("Initializing pin change interrupt library\r\n"));
-	
-	pcint0Init();
-	pcint2Init();
+	printPgmString(PSTR("Initializing PD2(PCINT18) and  PD3(PCINT19) to pullup-input\r\n"));
+    DDRD &= ~((1 << DDD2) | (1 << DDD3)); //拉低PD2/3 口的电平
+                                          // PD2,PD3 (PCINT18, PCINT19 pin) 现在处于输入态
+    PORTD |= ((1 << PORTD2) | (1 << PORTD3)) ; // 开启上拉,必须要pullup. 见pcint.c中的说明
 
-
-	// configure external interrupts for rising-edge triggering.
-	// when a rising-edge pulse arrives on INT0 or INT1,
-	// the interrupt will be triggered
-	printPgmString(PSTR("Configuring external interrupts\r\n"));
+    // PD2, PD3 现在处于上拉输入状态下	
 
 	// attach user interrupt routines.
 	// when the interrupt is triggered, the user routines will be executed
 	printPgmString(PSTR("Attaching user interrupt routines\r\n"));
-	pcint0Attach(PCINT3, mypcint0Handler);
-	pcint2Attach(PCINT23, mypcint2Handler);
 
-	// enable the interrupts
-	printPgmString(PSTR("Enabling pin change interrupts\r\n"));
-	// (support for this has not yet been added to the library)
-	pcint0Enable( pcint0Intrrupts   );
-	pcint2Enable( pcint2Intrrupts  );
+    enable_pcinterrupt(PCINTR18,mypcint0Handler);
+    enable_pcinterrupt(PCINTR19,mypcint2Handler);
 
 	// In this loop we will count the number of external interrupts,
 	// and therefore the number of rising edges, that occur in one second.

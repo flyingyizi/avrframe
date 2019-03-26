@@ -188,16 +188,16 @@ ISR(SERIAL_RX)
   {
   case CMD_STATUS_REPORT:
     bit_true_atomic(sys_rt_exec_state, EXEC_STATUS_REPORT);
-    break; // Set as true
+    break; // Set as TRUE
   case CMD_CYCLE_START:
     bit_true_atomic(sys_rt_exec_state, EXEC_CYCLE_START);
-    break; // Set as true
+    break; // Set as TRUE
   case CMD_FEED_HOLD:
     bit_true_atomic(sys_rt_exec_state, EXEC_FEED_HOLD);
-    break; // Set as true
+    break; // Set as TRUE
   case CMD_SAFETY_DOOR:
     bit_true_atomic(sys_rt_exec_state, EXEC_SAFETY_DOOR);
-    break; // Set as true
+    break; // Set as TRUE
   case CMD_RESET:
     //TODO:  mc_reset();
     break; // Call motion control reset routine.

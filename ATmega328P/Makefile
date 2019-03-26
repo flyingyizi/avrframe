@@ -1,3 +1,5 @@
+# -std=c99, -std=gnu99, -std=c11 or -std=gnu11 to compile your code
+
 
 #最终bin文件的名字，可以更改为自己需要的
 BIN=myapp
@@ -14,9 +16,10 @@ CFLAGS        = -g -Wall $(OPTIMIZE) $(DEFS)
 # ALL_CFLAGS 		= -mmcu=$(MCU)  -D F_CPU=$(F_CPU)  -I. $(CFLAGS) 
 # ALL_CXXFLAGS 	= -mmcu=$(MCU)  -D F_CPU=$(F_CPU)  -I. $(CFLAGS) -std=c++98 
 
-ALL_CFLAGS 		= -mmcu=$(MCU)   -D F_CPU=$(F_CPU) -I. $(CFLAGS)
-ALL_CXXFLAGS 	= -mmcu=$(MCU)   -D F_CPU=$(F_CPU) -I. $(CFLAGS) -std=c++98
-ALL_ASFLAGS 	= -mmcu=$(MCU)   -D F_CPU=$(F_CPU) -I. -x assembler-with-cpp $(ASFLAGS)
+
+ALL_CFLAGS 		= -mmcu=$(MCU) -D _DEBUG  -D F_CPU=$(F_CPU) -I. $(CFLAGS)
+ALL_CXXFLAGS 	= -mmcu=$(MCU) -D _DEBUG  -D F_CPU=$(F_CPU) -I. $(CFLAGS) -std=c++98
+ALL_ASFLAGS 	= -mmcu=$(MCU) -D _DEBUG  -D F_CPU=$(F_CPU) -I. -x assembler-with-cpp $(ASFLAGS)
 
 
 #设置工具
@@ -37,7 +40,7 @@ COFFCONVERT=$(OBJCOPY) --debugging \
 
 
 #debug文件夹里的makefile文件需要最后执行，所以这里需要执行的子目录要排除debug文件夹，这里使用awk排除了Debug文件夹，读取剩下的文件夹
-SUBDIRS=$(shell ls -l | grep ^d | awk '{if($$9 != "Debug") print $$9}')
+SUBDIRS=$(shell ls -l | grep ^d | awk '{if($$9 != "Debug" ) print $$9}')
 #无需下一行的注释代码，因为我们已经知道debug里的makefile是最后执行的，所以最后直接去debug目录下执行指定的makefile文件就行，具体下面有注释
 #DEBUG=$(shell ls -l | grep ^d | awk '{if($$9 == "Debug") print $$9}')
 #记住当前工程的根目录路径

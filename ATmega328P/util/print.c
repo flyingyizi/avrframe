@@ -22,6 +22,7 @@
 #include "../serial/serial.h"
 
 #include <avr/pgmspace.h>
+#include <stdio.h>
 
 
 void printString(const char *s)
@@ -180,3 +181,17 @@ void printFloat(float n, uint8_t decimal_places)
 //   printInteger((int32_t)free);
 //   printString(" ");
 // }
+
+#if _DEBUG
+void debugPrintfSerial(const char *cmd, ...)
+{
+    char str[100] = {0};
+    va_list args;        //定义一个va_list类型的变量，用来储存单个参数
+    va_start(args, cmd); //使args指向可变参数的第一个参数
+    vsnprintf(str,sizeof(str), cmd, args);
+    va_end(args); //结束可变参数的获取
+    printString(str);
+}
+#else
+void debugPrintfSerial(const char *cmd, ...) {}
+#endif

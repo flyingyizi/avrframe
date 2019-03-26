@@ -23,6 +23,9 @@
 #define print_h
 #include <avr/io.h>
 
+void debugPrintfSerial(const char *cmd, ...);
+
+
 void printString(const char *s);
 
 void printPgmString(const char *s);

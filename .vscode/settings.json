@@ -2,6 +2,8 @@
     "files.associations": {
         "print.h": "c",
         "io.h": "c",
-        "interrupt.h": "c"
+        "interrupt.h": "c",
+        "string.h": "c",
+        "ctype.h": "c"
     }
 }

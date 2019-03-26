@@ -9,7 +9,9 @@
 #include "util/report.h"
 #include <avr/pgmspace.h>
 
-#include "extint/pcinttest.h" 
+// #include "pcint/pcinttest.h" 
+#include "softSerial/softSerial.h"
+
 
 // Line buffer size from the serial input stream to be executed.
 // NOTE: Not a problem except for extreme cases, but the line buffer size can be too small
@@ -192,7 +194,7 @@ int main()
   // timer1Init();  // initialize the timer system
   sei();         // Enable interrupts
 
-  pcintTest();
+  softSerialTest();
 
 
   // Write your code here

@@ -68,18 +68,10 @@ enum AVRPIN_GROUP
     PIN_PORTC = 3,
     PIN_PORTD = 4
 };
-enum AVRPCMSK_GROUP
-{
-    PCMSK_UNKNOWN = -1,
-    enumPCMSK0 = 5,
-    enumPCMSK1 = 6,
-    enumPCMSK2 = 7
-};
 
 //
 typedef struct PinInfoT
 {
-    enum AVRPCMSK_GROUP avr_pcmsk; //取值. enumPCMSK0, enumPCMSK1,enumPCMSK2
     uint8_t avr_pcie_no;           //取值 PCIE0,PCIE1,PCIE2,
     uint8_t avr_pcint_no;          //avr 标准定义PCINTx
 
@@ -87,6 +79,7 @@ typedef struct PinInfoT
     volatile uint8_t  *p_pin;
     volatile uint8_t  *p_port;
     volatile uint8_t  *p_ddr;
+    volatile uint8_t  *p_pcmsk;
     
     uint8_t pin_mask;               //PIN对应的mask e.g.  _BV(PINB0)
     uint8_t port_mask;              //PIN对应的mask e.g.  _BV(PORTB0)
@@ -108,32 +101,20 @@ typedef struct CallbackT
 // functions
 PinInfo *fillPinInfo(PinInfo *info, uint8_t PCINT_NO);
 
-Callback *findCallback(int PCINT_NO);
-
-/*! \brief This function initial the external pin change interrupt.
- *         
- *  \param len	the maximum num of pin change interrupts supported
- *  \retrun: NULL means initial fail, others means success
- */
-Callback **pcintInit(uint8_t len);
 
 /*! \brief This function enables the external pin change interrupt.
  *         
- *  \param PCINT_NO	The pin change interrupt which has to be enabled. refer PCINTRx  macro define
+ *  \param PCINTR_NO	The pin change interrupt which has to be enabled. refer PCINTRx  macro define
  *  \param userHandler The pin change interrupt reltated customer func. if it is 0, it means no attatch func for the pin
  *  \param handlerParam  input param for the pin change interrupt func, if it is NULL, will not 
  *                      modify the related func's input
+ *  NOTICE!: 考虑中断效率，PCIE0,PCIE1,PCIE2各组中，各自只支持一路，如果对某组中多个注册仅会保留最后一个。
+ *           例如同时注册PCINTR0，PCINTR1，那仅仅会保持PCINTR1这后面注册的。
  */
 
-Callback *register_pcinterrupt(uint8_t PCINT_NO, void (*userHandler)(void*),  void *handlerParam );
+Callback *register_pcinterrupt(uint8_t PCINTR_NO, void (*userHandler)(void*),  void *handlerParam );
 
-Callback *enable_pcinterrupt(Callback *p);
-
-
-/*! \brief This function disables the external pin change interrupt.
- *         
- *  \param PCINT_NO	The pin change interrupt which has to be disabled. refer PCINTRx  macro define
- */
-void disable_pcinterrupt(Callback *p);
+inline void enable_pcinterrupt(Callback *p);
+inline void disable_pcinterrupt(Callback *p);
 
 #endif

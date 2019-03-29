@@ -10,7 +10,7 @@
 #include <avr/pgmspace.h>
 
 // #include "pcint/pcinttest.h" 
-#include "softSerial/softSerial.h"
+#include "softSerial/softSerialtest.h"
 
 
 // Line buffer size from the serial input stream to be executed.

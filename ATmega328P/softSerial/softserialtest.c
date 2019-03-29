@@ -10,6 +10,16 @@
 
 #include "softSerial.h" 
 
+// 硬串口与软串口互相通信
+// int main()
+// {
+//   // Initialize system upon power-up.
+//   serial_init(); // Setup serial baud rate and interrupts
+//   sei();         // Enable interrupts
+
+//   softSerialTest();
+//   return 0;
+// }
 
 void softSerialTest(void)
 {
@@ -23,8 +33,7 @@ void softSerialTest(void)
 
    while(1){
       if (available(mySerial)) {
-	      // printPgmString(PSTR("\r\n\n\nbb!\r\n"));
-         serial_write(read(mySerial));//todo 硬件串口写
+         serial_write(read(mySerial));//硬件串口写
       }
 
       uint8_t d= serial_read();

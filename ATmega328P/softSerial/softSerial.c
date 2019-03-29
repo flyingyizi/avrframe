@@ -19,6 +19,10 @@ SoftSerial.cpp (formerly NewSoftSerial.cpp) -
 #include <util/delay_basic.h>
 #include "../pcint/pcint.h"
 
+#ifndef GCC_VERSION
+#define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#endif
+
 static void recv(SoftSerial *p);
 static void setRxIntMsk(SoftSerial *p, uint8_t enable);
 static uint16_t subtract_cap(uint16_t num, uint16_t sub);
@@ -99,11 +103,6 @@ static void recv(SoftSerial *p)
 }
 
 
-
-
-#define sbi(reg, bit) reg |= (_BV(bit))
-#define cbi(reg, bit) reg &= ~(_BV(bit))
-
 static void applyDelayParam(SoftSerial *p, long speed)
 {
     p->_rx_delay_centering = p->_rx_delay_intrabit = 0;
@@ -120,46 +119,42 @@ static void applyDelayParam(SoftSerial *p, long speed)
     // timings are the most critical (deviations stack 8 times)
     p->_tx_delay = subtract_cap(bit_delay, 15 / 4);
 
-        p->_rx_delay_centering = 1;// subtract_cap(bit_delay / 2, (4 + 4 + 75 + 17 - 23) / 4);
-        p->_rx_delay_intrabit = subtract_cap(bit_delay, 23 / 4);
-        p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (37 + 11) / 4);
-
     {
-        // #if GCC_VERSION > 40800
-        // // Timings counted from gcc 4.8.2 output. This works up to 115200 on
-        // // 16Mhz and 57600 on 8Mhz.
-        // //
-        // // When the start bit occurs, there are 3 or 4 cycles before the
-        // // interrupt flag is set, 4 cycles before the PC is set to the right
-        // // interrupt vector address and the old PC is pushed on the stack,
-        // // and then 75 cycles of instructions (including the RJMP in the
-        // // ISR vector table) until the first delay. After the delay, there
-        // // are 17 more cycles until the pin value is read (excluding the
-        // // delay in the loop).
-        // // We want to have a total delay of 1.5 bit time. Inside the loop,
-        // // we already wait for 1 bit time - 23 cycles, so here we wait for
-        // // 0.5 bit time - (71 + 18 - 22) cycles.
-        // p->_rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 75 + 17 - 23) / 4);
+        #if GCC_VERSION > 40800
+        // Timings counted from gcc 4.8.2 output. This works up to 115200 on
+        // 16Mhz and 57600 on 8Mhz.
+        //
+        // When the start bit occurs, there are 3 or 4 cycles before the
+        // interrupt flag is set, 4 cycles before the PC is set to the right
+        // interrupt vector address and the old PC is pushed on the stack,
+        // and then 75 cycles of instructions (including the RJMP in the
+        // ISR vector table) until the first delay. After the delay, there
+        // are 17 more cycles until the pin value is read (excluding the
+        // delay in the loop).
+        // We want to have a total delay of 1.5 bit time. Inside the loop,
+        // we already wait for 1 bit time - 23 cycles, so here we wait for
+        // 0.5 bit time - (71 + 18 - 22) cycles.
+        p->_rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 75 + 17 - 23) / 4);
 
-        // // There are 23 cycles in each loop iteration (excluding the delay)
-        // p->_rx_delay_intrabit = subtract_cap(bit_delay, 23 / 4);
+        // There are 23 cycles in each loop iteration (excluding the delay)
+        p->_rx_delay_intrabit = subtract_cap(bit_delay, 23 / 4);
 
-        // // There are 37 cycles from the last bit read to the start of
-        // // stopbit delay and 11 cycles from the delay until the interrupt
-        // // mask is enabled again (which _must_ happen during the stopbit).
-        // // This delay aims at 3/4 of a bit time, meaning the end of the
-        // // delay will be at 1/4th of the stopbit. This allows some extra
-        // // time for ISR cleanup, which makes 115200 baud at 16Mhz work more
-        // // reliably
-        // p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (37 + 11) / 4);
-        // #else // Timings counted from gcc 4.3.2 output
-        // // Note that this code is a _lot_ slower, mostly due to bad register
-        // // allocation choices of gcc. This works up to 57600 on 16Mhz and
-        // // 38400 on 8Mhz.
-        // p->_rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 97 + 29 - 11) / 4);
-        // p->_rx_delay_intrabit = subtract_cap(bit_delay, 11 / 4);
-        // p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (44 + 17) / 4);
-        // #endif
+        // There are 37 cycles from the last bit read to the start of
+        // stopbit delay and 11 cycles from the delay until the interrupt
+        // mask is enabled again (which _must_ happen during the stopbit).
+        // This delay aims at 3/4 of a bit time, meaning the end of the
+        // delay will be at 1/4th of the stopbit. This allows some extra
+        // time for ISR cleanup, which makes 115200 baud at 16Mhz work more
+        // reliably
+        p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (37 + 11) / 4);
+        #else // Timings counted from gcc 4.3.2 output
+        // Note that this code is a _lot_ slower, mostly due to bad register
+        // allocation choices of gcc. This works up to 57600 on 16Mhz and
+        // 38400 on 8Mhz.
+        p->_rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 97 + 29 - 11) / 4);
+        p->_rx_delay_intrabit = subtract_cap(bit_delay, 11 / 4);
+        p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (44 + 17) / 4);
+        #endif
 
         tunedDelay(p->_tx_delay); // if we were low this establishes the end
     }

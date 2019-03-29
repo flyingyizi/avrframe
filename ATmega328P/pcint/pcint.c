@@ -38,103 +38,74 @@
 #include "../util/print.h"
 
 // Global variables
-Callback *g_callbacks = NULL;
-uint8_t g_callbacks_len = 0;
-//记录注册了的PIN change
-volatile static uint8_t g_mask_pinb = 0x0; //存放PinB中注册了pin change的端口
-volatile static uint8_t g_mask_pinc = 0x0; //存放PinC中注册了pin change的端口
-volatile static uint8_t g_mask_pind = 0x0; //存放PinD中注册了pin change的端口
+struct PCGLOBAL {
+    Callback *b ;
+    Callback *c ;
+    Callback *d ;
+} ;
 
-// PIN CHANGE的默认初始为1状态，因此注意在代码中需要初始化PORTXn设置初始状态为pull up
+struct PCGLOBAL myglobal = {NULL, NULL,NULL};
 
-volatile static uint8_t g_historyb = 0xFF; //存放PinB 的bit变更
-volatile static uint8_t g_historyc = 0xFF; //存放PinC 的bit变更
-volatile static uint8_t g_historyd = 0xFF; //存放PinD 的bit变更
+inline enum AVRPIN_GROUP _whichpingroup(uint8_t PCINTR_NO);
 
-Callback *findCallback(int PCINT_NO)
+static Callback *addCallback(uint8_t PCINTR_NO, void (*handler)(void*), void *handlerParam)
 {
-    int i;
-    for (i = 0; i < g_callbacks_len; i++)
+    enum AVRPIN_GROUP gr = _whichpingroup( PCINTR_NO);
+    Callback **p=NULL;
+    switch (gr)
     {
-        if ( PCINT_NO== g_callbacks[i].pcintr_no)
-        {
-            return  &(g_callbacks[i]);
-        }
-    }
-    return NULL;
-}
-
-static void initCallback(Callback *p) {
-    if(NULL==p) {
-        return;
-    }
-    memset(p, 0, sizeof(Callback ) );
-
-    p->pcintr_no = PCINTR_UNKNOWN;
-    p->func = NULL;
-    p->func_param = NULL;
-
-    p->info.avr_pingroup = PIN_UNKNOWN;
-    p->info.avr_pcmsk = PCMSK_UNKNOWN;
-    p->info.p_pin=NULL;
-    p->info.p_port=NULL;
-    p->info.p_ddr=NULL;
-}
-
-/*! \brief This function add a pin change interrupt.
- *         
- *  \param handler  related pin change interrupt func, if it is NULL, will not 
- *                      modify the related pin change interrupt func
- *  \param handlerParam  input param for the pin change interrupt func, if it is NULL, will not 
- *                      modify the related func's input
- */
-static Callback *addCallback(uint8_t PCINT_NO, void (*handler)(void*), void *handlerParam)
-{
-    //尝试在历史中找
-    Callback *p = findCallback(PCINT_NO);
-
-    //新分配重试
-    if (NULL == p)
-    {
-        //为g_callbacks增加空间,增长幅度固定为1
-        Callback *temp = (Callback *)realloc(g_callbacks, sizeof(Callback) *(1+g_callbacks_len));        
-        if (temp == g_callbacks) {
-            //说明原址增加成功
-            p = &(g_callbacks[g_callbacks_len]);
-            initCallback( p   );
-            g_callbacks_len++;
-        } else if (temp != g_callbacks) {
-            memcpy(temp, g_callbacks, g_callbacks_len * sizeof(Callback) );
-            p = &(temp[g_callbacks_len]) ;
-            initCallback( p  );
-            g_callbacks_len++;
-            g_callbacks = temp;
-        } 
+        case PIN_PORTB:
+            p = &(myglobal.b);
+            break;
+        case PIN_PORTC:
+            p = &(myglobal.c);
+            break;
+        case PIN_PORTD:
+            p = &(myglobal.d);
+            break;    
+        default:
+            return NULL;
+            break;
     }
 
-    if (NULL != p)
-    {
-        p->pcintr_no = PCINT_NO;
-        p->func = handler; 
-        p->func_param = handlerParam; 
+    if(NULL ==*p )       {
+        *p = (Callback *)malloc( sizeof(Callback) );          
+    }
 
-        if (NULL == fillPinInfo(&(p->info), PCINT_NO))
+    if (NULL != *p)
+    {
+        (*p)->pcintr_no = PCINTR_NO;
+        (*p)->func = handler; 
+        (*p)->func_param = handlerParam; 
+
+        if (NULL == fillPinInfo(&(  (*p)->info), PCINTR_NO))
         {
             return NULL;
         }
     } 
 
-    return p;
+    return *p;
 }
 
 /////////////////////////////////////
 
 
 
-#define bit(n) (1 << (n))
-#define bit_false(x, mask) (x) &= ~(mask)
-#define bit_istrue(x, mask) ((x & mask) != 0)
-#define min(a, b) (((a) < (b)) ? (a) : (b))
+inline enum AVRPIN_GROUP _whichpingroup(uint8_t PCINTR_NO)
+{
+    enum AVRPIN_GROUP  avr_pingroup = PIN_UNKNOWN;
+    if (PCINTR_NO >= 0 && PCINTR_NO <= 7)
+    {
+        avr_pingroup = PIN_PORTB;
+    }else if (PCINTR_NO >= 8 && PCINTR_NO <= 15)
+    {
+        avr_pingroup = PIN_PORTC;
+    } else
+    {
+        avr_pingroup = PIN_PORTD;
+    }
+    return avr_pingroup;
+}
 
 PinInfo *fillPinInfo(PinInfo *info, uint8_t PCINT_NO)
 {
@@ -144,23 +115,20 @@ PinInfo *fillPinInfo(PinInfo *info, uint8_t PCINT_NO)
     }
 
     uint8_t avr_pcie_no = 0; //avr 标准定义PCIEx
-    enum AVRPCMSK_GROUP pcmsk = PCMSK_UNKNOWN;
     uint8_t avr_pcint_no = 0; //avr 标准定义PCINTx
 
-    enum AVRPIN_GROUP  avr_pingroup = PIN_UNKNOWN;
     uint8_t pinmask, portmask, ddrmask;
     pinmask = portmask = ddrmask = 0;
+    enum AVRPIN_GROUP  avr_pingroup = _whichpingroup(PCINT_NO);
 
     uint8_t valid = 1;
-    if (PCINT_NO >= 0 && PCINT_NO <= 7)
+    if (  avr_pingroup == PIN_PORTB)
     {
         avr_pcie_no = PCIE0;
-        avr_pingroup = PIN_PORTB;
         info->p_pin=&PINB;
         info->p_port=&PORTB;
         info->p_ddr=&DDRB;
-
-        pcmsk = enumPCMSK0;
+        info->p_pcmsk=&PCMSK0;
 
         switch (PCINT_NO)
         {
@@ -217,15 +185,14 @@ PinInfo *fillPinInfo(PinInfo *info, uint8_t PCINT_NO)
             break;
         }
     }
-    else if (PCINT_NO >= 8 && PCINT_NO <= 15)
+    else if (avr_pingroup == PIN_PORTC)
     {
         avr_pcie_no = PCIE1;
-        avr_pingroup = PIN_PORTC;
+        
         info->p_pin=&PINC;
         info->p_port=&PORTC;
         info->p_ddr=&DDRC;
-
-        pcmsk = enumPCMSK1;
+        info->p_pcmsk=&PCMSK1;
 
         switch (PCINT_NO)
         {
@@ -271,28 +238,27 @@ PinInfo *fillPinInfo(PinInfo *info, uint8_t PCINT_NO)
             ddrmask = _BV(DDC6);
             portmask = _BV(PORTC6);
             break;
-    #ifdef PCINT15
+        #ifdef PCINT15
         case PCINTR15:
             avr_pcint_no = PCINT15;
             pinmask = _BV(PINC7);
             ddrmask = _BV(DDC7);
             portmask = _BV(PORTC7);
             break;
-    #endif
+        #endif
         default:
             valid = 0;
             break;
         }
     }
-    else
+    else if (avr_pingroup == PIN_PORTD)
     {
         avr_pcie_no = PCIE2;
-        avr_pingroup = PIN_PORTD;
         info->p_pin=&PIND;
         info->p_port=&PORTD;
         info->p_ddr=&DDRD;
+        info->p_pcmsk=&PCMSK2;
 
-        pcmsk = enumPCMSK2;
         switch (PCINT_NO)
         {
         case PCINTR16:
@@ -358,7 +324,6 @@ PinInfo *fillPinInfo(PinInfo *info, uint8_t PCINT_NO)
     info->ddr_mask = ddrmask;
     info->avr_pingroup = avr_pingroup;
     info->avr_pcint_no = avr_pcint_no;
-    info->avr_pcmsk = pcmsk;
     info->avr_pcie_no=avr_pcie_no;
 
     return info;
@@ -381,54 +346,19 @@ Callback *register_pcinterrupt(uint8_t PCINT_NO, void (*userHandler)(void*),  vo
         return NULL;
     }
 
-    //对PIN CHANGE的端口，一律设置为pullup输入口，因为识别状态变化的初始态值设为了1
-    //更新全局mask, 设置对应PIN为input pullup
+    //对PIN CHANGE的端口，一律设置为pullup输入口，
     *(p->info.p_ddr) &= ~(p->info.ddr_mask); //设置为input
     *(p->info.p_port) |= (p->info.port_mask);//pullup
 
     return p;
 }
 
-Callback *enable_pcinterrupt(Callback *p)
+void enable_pcinterrupt(Callback *p)
 {
-    //对PIN CHANGE的端口，一律设置为pullup输入口，因为识别状态变化的初始态值设为了1
-    //更新全局mask, 设置对应PIN为input pullup
-    if (PIN_UNKNOWN == p->info.avr_pingroup) {
-        return NULL;
+    if (NULL !=p) {
+        PCICR |= _BV(p->info.avr_pcie_no); //e.g.  PCIE0
+        *(p->info.p_pcmsk) |= _BV(p->info.avr_pcint_no);
     }
-    switch (p->info.avr_pingroup)
-    {
-    case PIN_PORTB:
-        g_mask_pinb |= p->info.pin_mask;
-        break;
-    case PIN_PORTC:
-        g_mask_pinc |= p->info.pin_mask;
-        break;
-    case PIN_PORTD:
-        g_mask_pind |= p->info.pin_mask;
-        break;
-    default:
-        break;
-    }
-
-    //
-    PCICR |= _BV(p->info.avr_pcie_no); //e.g.  PCIE0
-    switch (p->info.avr_pcmsk)
-    {
-    case enumPCMSK0:
-        PCMSK0 |= _BV(p->info.avr_pcint_no);
-        break;
-    case enumPCMSK1:
-        PCMSK1 |= _BV(p->info.avr_pcint_no);
-        break;
-    case enumPCMSK2:
-        PCMSK2 |= _BV(p->info.avr_pcint_no);
-        break;
-    default:
-        break;
-    }
-
-    return p;
 }
 
 
@@ -438,128 +368,43 @@ Callback *enable_pcinterrupt(Callback *p)
  */
 void disable_pcinterrupt(Callback *p)
 {
-    if (NULL == p)
-    {
-        return;
-    }
-
-    //cancel
-    switch (p->info.avr_pcmsk)
-    {
-    case enumPCMSK0:
-        PCMSK0 &= ~(_BV(p->info.avr_pcint_no));
-        break;
-    case enumPCMSK1:
-        PCMSK1 &= ~(_BV(p->info.avr_pcint_no));
-        break;
-    case enumPCMSK2:
-        PCMSK2 &= ~(_BV(p->info.avr_pcint_no));
-        break;
-    default:
-        break;
-    }
-
-    //更新全局mask,将对应bit clear
-    switch (p->info.avr_pingroup)
-    {
-    case PIN_PORTB:
-        g_mask_pinb &= ~(p->info.pin_mask);
-        break;
-    case PIN_PORTC:
-        g_mask_pinc &= ~(p->info.pin_mask);
-        break;
-    case PIN_PORTD:
-        g_mask_pind &= ~(p->info.pin_mask);
-        break;
-    default:
-        break;
-    }
-
-    if (PCMSK0 == 0x00)
-    {
-        PCICR = (PCICR & (~(1 << PCIE0)));
-    }
-    else if (PCMSK1 == 0x00)
-    {
-        PCICR = (PCICR & (~(1 << PCIE1)));
-    }
-    else if (PCMSK2 == 0x00)
-    {
-        PCICR = (PCICR & (~(1 << PCIE2)));
+    if (NULL != p)    {
+        //cancel
+        *(p->info.p_pcmsk) &= ~(_BV(p->info.avr_pcint_no));
     }
 }
 
 #if defined(PCINT0_vect)
 ISR(PCINT0_vect)
 {
-    uint8_t diffb = 0, diffc = 0, diffd = 0;
-    if (g_callbacks)
+    if (myglobal.b)
     {
-        //每个port存储8位
-        if(0x00 !=g_mask_pinb) {
-            diffb = (PINB ^ g_historyb) & g_mask_pinb;
-            //更新portbhistory
-            g_historyb = PINB;
-        }
-        if(0x00 !=g_mask_pinc) {
-            diffc = (PINC ^ g_historyc) & g_mask_pinc;
-            g_historyc = PINC;
-        }
-        if(0x00 !=g_mask_pind) {
-            diffd = (PIND ^ g_historyd) & g_mask_pind;
-            g_historyd = PIND;
-        }    
-
-        // debugPrintfSerial("enter the main entry: diffb %d,diffc %d,diffd %d; \r\n", 
-        //    diffb, diffc,diffd     );
-        // if a user function is defined, execute it
-        uint8_t i;
-        volatile Callback *p = NULL;
-        for (i = 0; i < g_callbacks_len; i++)
-        {
-            p = &(g_callbacks[i]);
-
-            if (PCINTR_UNKNOWN == p->pcintr_no)
-            {
-                continue;
-            }
-
-            switch (p->info.avr_pingroup)
-            {
-            case PIN_PORTB:
-                if (diffb && bit_istrue(diffb, (p->info.pin_mask)) && (p->func) != NULL)
-                {
-                    (p->func)(p->func_param);
-                }
-                break;
-            case PIN_PORTC:
-                if (diffc && bit_istrue(diffc, (p->info.pin_mask)) && (p->func) != NULL)
-                {
-                    (p->func)(p->func_param);
-                }
-                break;
-            case PIN_PORTD:
-                if (diffd && bit_istrue(diffd, (p->info.pin_mask)) && (p->func) != NULL)
-                {
-                    (p->func)(p->func_param);
-                }
-                break;
-            default:
-                break;
-            }
-        }
+        ((myglobal.b)->func)((myglobal.b)->func_param);
     }
 }
 #endif
 
 #if defined(PCINT1_vect)
-ISR(PCINT1_vect, ISR_ALIASOF(PCINT0_vect));
+ISR(PCINT1_vect)
+{
+    if (myglobal.c)
+    {
+        ((myglobal.c)->func)((myglobal.c)->func_param);
+    }
+}
 #endif
 
 #if defined(PCINT2_vect)
-ISR(PCINT2_vect, ISR_ALIASOF(PCINT0_vect));
+ISR(PCINT2_vect)
+{
+    if (myglobal.d)
+    {
+        ((myglobal.d)->func)((myglobal.d)->func_param);
+    }
+}
 #endif
 
-#if defined(PCINT3_vect)
-ISR(PCINT3_vect, ISR_ALIASOF(PCINT0_vect));
-#endif
+
+// #if defined(PCINT3_vect)
+// ISR(PCINT3_vect, ISR_ALIASOF(PCINT0_vect));
+// #endif

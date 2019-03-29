@@ -53,10 +53,6 @@ void pcintTest(void)
 	// initialize the external interrupt library
 	printPgmString(PSTR("Initializing PD2(PCINT18) and  PD3(PCINT19) to pullup-input\r\n"));
 
-	// Callback **pg = pcintInit(2);
-	// if (pg == NULL)
-	// 	goto end;
-
 	// PD2, PD3 现在处于上拉输入状态下
 
 	// attach user interrupt routines.
@@ -67,10 +63,6 @@ void pcintTest(void)
 	Callback *p18=register_pcinterrupt(PCINTR18, mypcint0Handler,NULL);
 	enable_pcinterrupt(p19);
 	enable_pcinterrupt(p18);
-
-	////////////////////////////////////////////////////////////
-	// Callback *p18= findCallback(PCINTR18);
-	// Callback *p19= findCallback(PCINTR19);
 
 	// In this loop we will count the number of external interrupts,
 	// and therefore the number of rising edges, that occur in one second.

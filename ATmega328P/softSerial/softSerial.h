@@ -19,9 +19,8 @@
 
 typedef struct SoftSerialT 
 {
-  uint8_t _receivePin;
-  uint8_t _receiveBitMask;
-  volatile uint8_t *_receivePortRegister;
+  Callback *p_rx;
+
   uint8_t _transmitBitMask;
   volatile uint8_t *_transmitPortRegister;
 

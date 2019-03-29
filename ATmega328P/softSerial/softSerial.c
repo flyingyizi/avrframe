@@ -37,76 +37,10 @@ inline void softserial_interrupt(void *p)
 }
 
 
-//
-// Debugging
-//
-// This function generates a brief pulse
-// for debugging or measuring on an oscilloscope.
-#if _DEBUG
-inline void DebugPortAsOutput(uint8_t pin)
-{
-    PinInfo info;
-    if (NULL == fillPinInfo(&info, pin))
-    {
-        return ;
-    }    
-    switch (info.avr_pingroup)
-    {
-        case PIN_PORTB:
-            DDRB |= info.ddr_mask;  // set to output
-            break;
-        case PIN_PORTC:
-            DDRC |= info.ddr_mask;  
-            break;
-        case PIN_PORTD:
-            DDRD |= info.ddr_mask;  // set to 1
-            break;        
-        default:
-            break;
-    }
-}
-
-inline void DebugPulse(uint8_t pin, uint8_t count)
-{
-    PinInfo info;
-    if (NULL == fillPinInfo(&info, pin))
-    {
-        return ;
-    }    
-
-    while (count--)
-    {
-        switch (info.avr_pingroup)
-        {
-            case PIN_PORTB:
-                PORTB |= info.port_mask;  // set to 1
-                PORTB &= ~info.port_mask; // set to 0
-                break;
-            case PIN_PORTC:
-                PORTC |= info.port_mask;  // set to 1
-                PORTC &= ~info.port_mask; // set to 0
-                break;
-            case PIN_PORTD:
-                PORTD |= info.port_mask;  // set to 1
-                PORTD &= ~info.port_mask; // set to 0
-                break;        
-            default:
-                break;
-        }
-    }
-}
-#else
-inline void DebugPulse(uint8_t, uint8_t)
-{
-}
-inline void DebugPortAsOutput(uint8_t pin){}
-
-#endif
-
-
 uint8_t rx_pin_read(SoftSerial *p)
 {
-    return *p->_receivePortRegister & p->_receiveBitMask;
+    return    *(p->p_rx->info.p_pin) & (p->p_rx->info.pin_mask);
+    // return * p->_receivePortRegister & p->_receiveBitMask;
 }
 /* static */
 inline void tunedDelay(uint16_t delay)
@@ -119,13 +53,6 @@ inline void tunedDelay(uint16_t delay)
 //
 static void recv(SoftSerial *p)
 {
-    // 起止式异步协议的特点是一个字符一个字符传输，并且传送一个字符总是以起始位开始，以停止位结束，
-    // 字符之间没有固定的时间间隔要求。其格式如图3所示。每一个字符的前面都有一位起始位（低电平，逻辑值0），
-    // 字符本身有5～7位数据位组成，接着字符后面是一位校验位（也可以没有校验位），最后是一位，或意味半，或二位停止位，
-    // 停止位后面是不定长度的空闲位。停止位和空闲位都规定为高电平（逻辑值），这样就保证起始位开始处一定有一个下跳沿。
-
-    // 起／止位的作用：起始位实际上是作为联络信号附加进来的，当它变为低电平时，告诉收方传送开始。它的到来，
-    // 表示下面接着是数据位来了，要准备接收。
     uint8_t d = 0;
 
     // If RX line is high, then we don't see any start bit
@@ -139,7 +66,6 @@ static void recv(SoftSerial *p)
 
         // Wait approximately 1/2 of a bit width to "center" the sample
         tunedDelay(p->_rx_delay_centering);
-        DebugPulse(_DEBUG_PIN2, 1);
 
         // Read each of the 8 bits
         uint8_t i;
@@ -147,7 +73,6 @@ static void recv(SoftSerial *p)
         {
             tunedDelay(p->_rx_delay_intrabit);
             d >>= 1;
-            DebugPulse(_DEBUG_PIN2, 1);
             if (rx_pin_read(p))
                 d |= 0x80;
         }
@@ -162,13 +87,11 @@ static void recv(SoftSerial *p)
         }
         else
         {
-            DebugPulse(_DEBUG_PIN1, 1);
             p->_buffer_overflow = TRUE;
         }
 
         // skip the stop bit
         tunedDelay(p->_rx_delay_stopbit);
-        DebugPulse(_DEBUG_PIN1, 1);
 
         // Re-enable interrupts when we're sure to be inside the stop bit
         setRxIntMsk(p,TRUE);
@@ -197,42 +120,46 @@ static void applyDelayParam(SoftSerial *p, long speed)
     // timings are the most critical (deviations stack 8 times)
     p->_tx_delay = subtract_cap(bit_delay, 15 / 4);
 
-    {
-        #if GCC_VERSION > 40800
-        // Timings counted from gcc 4.8.2 output. This works up to 115200 on
-        // 16Mhz and 57600 on 8Mhz.
-        //
-        // When the start bit occurs, there are 3 or 4 cycles before the
-        // interrupt flag is set, 4 cycles before the PC is set to the right
-        // interrupt vector address and the old PC is pushed on the stack,
-        // and then 75 cycles of instructions (including the RJMP in the
-        // ISR vector table) until the first delay. After the delay, there
-        // are 17 more cycles until the pin value is read (excluding the
-        // delay in the loop).
-        // We want to have a total delay of 1.5 bit time. Inside the loop,
-        // we already wait for 1 bit time - 23 cycles, so here we wait for
-        // 0.5 bit time - (71 + 18 - 22) cycles.
-        p->_rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 75 + 17 - 23) / 4);
-
-        // There are 23 cycles in each loop iteration (excluding the delay)
+        p->_rx_delay_centering = 1;// subtract_cap(bit_delay / 2, (4 + 4 + 75 + 17 - 23) / 4);
         p->_rx_delay_intrabit = subtract_cap(bit_delay, 23 / 4);
-
-        // There are 37 cycles from the last bit read to the start of
-        // stopbit delay and 11 cycles from the delay until the interrupt
-        // mask is enabled again (which _must_ happen during the stopbit).
-        // This delay aims at 3/4 of a bit time, meaning the end of the
-        // delay will be at 1/4th of the stopbit. This allows some extra
-        // time for ISR cleanup, which makes 115200 baud at 16Mhz work more
-        // reliably
         p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (37 + 11) / 4);
-        #else // Timings counted from gcc 4.3.2 output
-        // Note that this code is a _lot_ slower, mostly due to bad register
-        // allocation choices of gcc. This works up to 57600 on 16Mhz and
-        // 38400 on 8Mhz.
-        p->_rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 97 + 29 - 11) / 4);
-        p->_rx_delay_intrabit = subtract_cap(bit_delay, 11 / 4);
-        p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (44 + 17) / 4);
-        #endif
+
+    {
+        // #if GCC_VERSION > 40800
+        // // Timings counted from gcc 4.8.2 output. This works up to 115200 on
+        // // 16Mhz and 57600 on 8Mhz.
+        // //
+        // // When the start bit occurs, there are 3 or 4 cycles before the
+        // // interrupt flag is set, 4 cycles before the PC is set to the right
+        // // interrupt vector address and the old PC is pushed on the stack,
+        // // and then 75 cycles of instructions (including the RJMP in the
+        // // ISR vector table) until the first delay. After the delay, there
+        // // are 17 more cycles until the pin value is read (excluding the
+        // // delay in the loop).
+        // // We want to have a total delay of 1.5 bit time. Inside the loop,
+        // // we already wait for 1 bit time - 23 cycles, so here we wait for
+        // // 0.5 bit time - (71 + 18 - 22) cycles.
+        // p->_rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 75 + 17 - 23) / 4);
+
+        // // There are 23 cycles in each loop iteration (excluding the delay)
+        // p->_rx_delay_intrabit = subtract_cap(bit_delay, 23 / 4);
+
+        // // There are 37 cycles from the last bit read to the start of
+        // // stopbit delay and 11 cycles from the delay until the interrupt
+        // // mask is enabled again (which _must_ happen during the stopbit).
+        // // This delay aims at 3/4 of a bit time, meaning the end of the
+        // // delay will be at 1/4th of the stopbit. This allows some extra
+        // // time for ISR cleanup, which makes 115200 baud at 16Mhz work more
+        // // reliably
+        // p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (37 + 11) / 4);
+        // #else // Timings counted from gcc 4.3.2 output
+        // // Note that this code is a _lot_ slower, mostly due to bad register
+        // // allocation choices of gcc. This works up to 57600 on 16Mhz and
+        // // 38400 on 8Mhz.
+        // p->_rx_delay_centering = subtract_cap(bit_delay / 2, (4 + 4 + 97 + 29 - 11) / 4);
+        // p->_rx_delay_intrabit = subtract_cap(bit_delay, 11 / 4);
+        // p->_rx_delay_stopbit = subtract_cap(bit_delay * 3 / 4, (44 + 17) / 4);
+        // #endif
 
         tunedDelay(p->_tx_delay); // if we were low this establishes the end
     }
@@ -252,13 +179,9 @@ SoftSerial *NewSoftSerial(uint8_t rx /* PCINT_NO */,
     {
         return NULL;
     }
-    PinInfo rxinfo;
-    if (NULL == fillPinInfo(&rxinfo, rx))
-    {
-        return NULL;
-    }
 
     SoftSerial *p = (SoftSerial *)malloc(sizeof(SoftSerial));
+    Callback *prx = register_pcinterrupt(rx, softserial_interrupt,(void*)p );
 
     p->_rx_delay_centering = (0);
     p->_rx_delay_intrabit = (0);
@@ -266,59 +189,19 @@ SoftSerial *NewSoftSerial(uint8_t rx /* PCINT_NO */,
     p->_tx_delay = (0);
     p->_buffer_overflow = (FALSE);
 
+    p->p_rx = prx;
+
     // setTX(tx);
     // First write, then set output. If we do this the other way around,
     // the pin would be output low for a short while before switching to
     // output high. Now, it is input with pullup for a short while, which
     // is fine.
     //设置为输出，并且为1
-    switch (txinfo.avr_pingroup)
-    {
-    case PIN_PORTB:
-        DDRB |= txinfo.ddr_mask;
-        PORTB |= txinfo.port_mask;
-        p->_transmitPortRegister = &PORTB;
-        break;
-    case PIN_PORTC:
-        DDRC |= txinfo.ddr_mask;
-        PORTC |= txinfo.port_mask;
-        p->_transmitPortRegister = &PORTC;
-        break;
-    case PIN_PORTD:
-        DDRD |= txinfo.ddr_mask;
-        PORTD |= txinfo.port_mask;
-        p->_transmitPortRegister = &PORTD;
-        break;
-    default:
-        break;
-    }
+    *(txinfo.p_ddr) |= txinfo.ddr_mask;
+    *(txinfo.p_port) |= txinfo.port_mask;
 
+    p->_transmitPortRegister = txinfo.p_port;
     p->_transmitBitMask = txinfo.port_mask;
-
-    // setRX(rx);
-    //设置为输入, pullup
-    switch (txinfo.avr_pingroup)
-    {
-    case PIN_PORTB:
-        DDRB &= ~rxinfo.ddr_mask;
-        PORTB |= rxinfo.port_mask;
-        p->_receivePortRegister = &PINB;
-        break;
-    case PIN_PORTC:
-        DDRC &= ~rxinfo.ddr_mask;
-        PORTC |= rxinfo.port_mask;
-        p->_receivePortRegister = &PINC;
-        break;
-    case PIN_PORTD:
-        DDRD &= ~rxinfo.ddr_mask;
-        PORTD |= rxinfo.port_mask;
-        p->_receivePortRegister = &PIND;
-        break;
-    default:
-        break;
-    }
-    p->_receiveBitMask = rxinfo.pin_mask;
-    // p->_receivePin=?
 
     applyDelayParam(p, speed);
 
@@ -330,8 +213,6 @@ SoftSerial *NewSoftSerial(uint8_t rx /* PCINT_NO */,
 
 void begin(SoftSerial *p)
 {
-    DebugPortAsOutput(_DEBUG_PIN2);
-    DebugPortAsOutput(_DEBUG_PIN1);
     setRxIntMsk(p, TRUE);
 
 }
@@ -349,11 +230,11 @@ static void setRxIntMsk(SoftSerial *p, uint8_t enable)
 {
     if (enable)
     {
-        enable_pcinterrupt(p->_receivePin, softserial_interrupt,(void*)p);
+        enable_pcinterrupt(p->p_rx);
     }
     else
     {
-        disable_pcinterrupt(p->_receivePin);
+        disable_pcinterrupt(p->p_rx);
     }
 }
 

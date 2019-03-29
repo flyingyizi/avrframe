@@ -84,6 +84,10 @@ typedef struct PinInfoT
     uint8_t avr_pcint_no;          //avr 标准定义PCINTx
 
     enum AVRPIN_GROUP avr_pingroup; //pin change 对应的AVR标准定义PINx，取值PIN_PORTB/PIN_PORTC/PIN_PORTD
+    volatile uint8_t  *p_pin;
+    volatile uint8_t  *p_port;
+    volatile uint8_t  *p_ddr;
+    
     uint8_t pin_mask;               //PIN对应的mask e.g.  _BV(PINB0)
     uint8_t port_mask;              //PIN对应的mask e.g.  _BV(PORTB0)
     uint8_t ddr_mask;               //PIN对应的mask e.g.  _BV(DDRB0)
@@ -121,12 +125,15 @@ Callback **pcintInit(uint8_t len);
  *                      modify the related func's input
  */
 
-Callback *enable_pcinterrupt(uint8_t PCINT_NO, void (*userHandler)(void*),  void *handlerParam );
+Callback *register_pcinterrupt(uint8_t PCINT_NO, void (*userHandler)(void*),  void *handlerParam );
+
+Callback *enable_pcinterrupt(Callback *p);
+
 
 /*! \brief This function disables the external pin change interrupt.
  *         
  *  \param PCINT_NO	The pin change interrupt which has to be disabled. refer PCINTRx  macro define
  */
-void disable_pcinterrupt(uint8_t PCINT_NO);
+void disable_pcinterrupt(Callback *p);
 
 #endif

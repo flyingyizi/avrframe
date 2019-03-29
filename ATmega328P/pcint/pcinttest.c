@@ -63,8 +63,10 @@ void pcintTest(void)
 	// when the interrupt is triggered, the user routines will be executed
 	printPgmString(PSTR("Attaching user interrupt routines\r\n"));
 
-	enable_pcinterrupt(PCINTR19, mypcint2Handler,NULL);
-	enable_pcinterrupt(PCINTR18, mypcint0Handler,NULL);
+	Callback *p19=register_pcinterrupt(PCINTR19, mypcint2Handler,NULL);
+	Callback *p18=register_pcinterrupt(PCINTR18, mypcint0Handler,NULL);
+	enable_pcinterrupt(p19);
+	enable_pcinterrupt(p18);
 
 	////////////////////////////////////////////////////////////
 	// Callback *p18= findCallback(PCINTR18);

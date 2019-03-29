@@ -11,32 +11,6 @@
 #include "softSerial.h" 
 
 
-
-// SoftwareSerial mySerial(10, 11); // RX, TX
-// void setup() {
-//   // Open serial communications and wait for port to open:
-//   Serial.begin(57600);
-//   while (!Serial) {
-//     ; // wait for serial port to connect. Needed for native USB port only
-//   }
-//   Serial.println("Goodnight moon!");
-
-//   // set the data rate for the SoftwareSerial port
-//   mySerial.begin(4800);
-//   mySerial.println("Hello, world?");
-// }
-
-// void loop() { // run over and over
-//   if (mySerial.available()) {
-//     Serial.write(mySerial.read());
-//   }
-//   if (Serial.available()) {
-//     mySerial.write(Serial.read());
-//   }
-// }
-
-
-
 void softSerialTest(void)
 {
 	// 写到硬口print a little intro message so we know things are working
@@ -49,8 +23,8 @@ void softSerialTest(void)
 
    while(1){
       if (available(mySerial)) {
-	      printPgmString(PSTR("\r\n\n\nbb!\r\n"));
-         //serial_write(read(mySerial));//todo 硬件串口写
+	      // printPgmString(PSTR("\r\n\n\nbb!\r\n"));
+         serial_write(read(mySerial));//todo 硬件串口写
       }
 
       uint8_t d= serial_read();

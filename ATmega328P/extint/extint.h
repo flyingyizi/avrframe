@@ -33,20 +33,23 @@
 
 // interrupt macros for attaching user functions to external interrupts
 // use these with extintAttach( intNum, function )
-#define EXTINT0					0x00	///< External Interrupt 0
-#define EXTINT1					0x01	///< External Interrupt 1
-#define EXTINT2					0x02	///< External Interrupt 2
-#define EXTINT3					0x03	///< External Interrupt 3
-#define EXTINT4					0x04	///< External Interrupt 4
-#define EXTINT5					0x05	///< External Interrupt 5
-#define EXTINT6					0x06	///< External Interrupt 6
-#define EXTINT7					0x07	///< External Interrupt 7
+typedef enum EXTINTTYPET {
+/*#define*/ EXTINT0		=		0x00,	///< External Interrupt 0
+/*#define*/ EXTINT1		=		0x01,	///< External Interrupt 1
+/*#define*/ EXTINT2		=		0x02,	///< External Interrupt 2
+/*#define*/ EXTINT3		=		0x03,	///< External Interrupt 3
+/*#define*/ EXTINT4		=		0x04,	///< External Interrupt 4
+/*#define*/ EXTINT5		=		0x05,	///< External Interrupt 5
+/*#define*/ EXTINT6		=		0x06,	///< External Interrupt 6
+/*#define*/ EXTINT7		=		0x07	///< External Interrupt 7
+}EXTINTTYPE;
 
-#define EXTINT_LEVEL_LOW		0x00	///< Trigger on low level
-#define EXTINT_EDGE_ANY			0x01	///< Trigger on any edge
-#define EXTINT_EDGE_FALLING		0x02	///< Trigger on falling edge
-#define EXTINT_EDGE_RISING		0x03	///< Trigger on rising edge
-
+typedef enum EXTINTMODET {
+/*#define*/ EXTINT_LEVEL_LOW	= 0x00,	///< Trigger on low level
+/*#define*/ EXTINT_EDGE_ANY		= 0x01,	///< Trigger on any edge
+/*#define*/ EXTINT_EDGE_FALLING	= 0x02,	///< Trigger on falling edge
+/*#define*/ EXTINT_EDGE_RISING	= 0x03	///< Trigger on rising edge
+}EXTINTMODE;
 
 // processor-adaptive defines
 // mainstream AVR processors generally have 1,2,3, or 8 external interrupts
@@ -71,7 +74,6 @@
 void extintInit(void);
 
 //! Configure external interrupt trigger
-void extintConfigure(uint8_t interruptNum, uint8_t configuration);
 
 // extintAttach and extintDetach commands
 //		These functions allow the attachment (or detachment) of any user
@@ -90,7 +92,7 @@ void extintConfigure(uint8_t interruptNum, uint8_t configuration);
 //		void myInterruptHandler(void) { ... }
 
 //! Attach a user function to an external interrupt
-void extintAttach(uint8_t interruptNum, void (*userHandler)(void) );
+void extintAttach(EXTINTTYPE interruptNum, void (*userHandler)(void), EXTINTMODE mode);
 //! Detach a user function from an external interrupt
 void extintDetach(uint8_t interruptNum);
 

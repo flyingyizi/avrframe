@@ -10,19 +10,6 @@
 // Target MCU	: Atmel AVR Series
 // Editor Tabs	: 4
 //
-// Notes:	This library provides convenient standardized configuration and
-//			access to pin change interrupts.  The library is designed to make
-//			it possible to write code that uses pin change interrupts without
-//			digging into the processor datasheets to find register names and
-//			bit-defines.  The library also strives to allow code which uses
-//			pin change interrupts to more easily cross-compile between different
-//			microcontrollers.
-//
-//			NOTE: Using this library has certain advantages, but also adds
-//			overhead and latency to interrupt servicing.  If the smallest
-//			code size or fastest possible latency is needed, do NOT use this
-//			library; link your interrupts directly.
-//
 //*****************************************************************************
 
 #include <avr/io.h>

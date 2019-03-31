@@ -66,21 +66,9 @@ void extintTest(void)
 	// configure external interrupts for rising-edge triggering.
 	// when a rising-edge pulse arrives on INT0 or INT1,
 	// the interrupt will be triggered
-	printPgmString(PSTR("Configuring external interrupts\r\n"));
-	extintConfigure(EXTINT0, EXTINT_EDGE_RISING);
-	extintConfigure(EXTINT1, EXTINT_EDGE_RISING);
-
-	// attach user interrupt routines.
-	// when the interrupt is triggered, the user routines will be executed
-	printPgmString(PSTR("Attaching user interrupt routines\r\n"));
-	extintAttach(EXTINT0, myInt0Handler);
-	extintAttach(EXTINT1, myInt1Handler);
-
-	// enable the interrupts
-	printPgmString(PSTR("Enabling external interrupts\r\n"));
-	// (support for this has not yet been added to the library)
-	sbi(EIMSK, INT0);
-	sbi(EIMSK, INT1);
+	printPgmString(PSTR("Configuring and attach external interrupts\r\n"));
+	extintAttach(EXTINT0, myInt0Handler, EXTINT_EDGE_FALLING);
+	extintAttach(EXTINT1, myInt1Handler, EXTINT_EDGE_FALLING);
 
 	// In this loop we will count the number of external interrupts,
 	// and therefore the number of rising edges, that occur in one second.

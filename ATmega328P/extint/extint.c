@@ -3,25 +3,12 @@
 //
 // File Name	: 'extint.c'
 // Title		: External-Interrupt function library
-// Author		: Pascal Stang - Copyright (C) 2002-2004
-// Created		: 5/10/2002
-// Revised		: 11/16/2004
+// Author		: flyingyizi - Copyright (C) 2002-2004
+// Created		: 03/10/2019
+// Revised		:
 // Version		: 1.0
 // Target MCU	: Atmel AVR Series
 // Editor Tabs	: 4
-//
-// Notes:	This library provides convenient standardized configuration and
-//			access to external interrupts.  The library is designed to make
-//			it possible to write code that uses external interrupts without
-//			digging into the processor datasheets to find register names and
-//			bit-defines.  The library also strives to allow code which uses
-//			external interrupts to more easily cross-compile between different
-//			microcontrollers.
-//
-//			NOTE: Using this library has certain advantages, but also adds
-//			overhead and latency to interrupt servicing.  If the smallest
-//			code size or fastest possible latency is needed, do NOT use this
-//			library; link your interrupts directly.
 //
 //*****************************************************************************
 
@@ -29,6 +16,11 @@
 #include <avr/interrupt.h>
 
 #include "extint.h"
+
+#if defined(__AVR_ATmega128__)
+#error "NOT SUPPORT"
+#endif
+
 
 // Global variables
 typedef void (*voidFuncPtr)(void);
@@ -46,41 +38,12 @@ void extintInit(void)
 
 }
 
+
+
 //! Configure external interrupt trigger
 // NOTE: this function is not complete!!!
-// TODO Not yet work extintConfigure()
-void extintConfigure(uint8_t interruptNum, uint8_t configuration)
-{
-	#if !defined(__AVR_ATmega128__)
-	if(interruptNum == EXTINT0)
-	{
-		MCUCR &= ~((1<<ISC01) | (1<<ISC00));
-		MCUCR |= configuration;
-	}
-	#ifdef INT1_vect
-	else if(interruptNum == EXTINT1)
-	{
-		MCUCR &= ~((1<<ISC11) | (1<<ISC10));
-		MCUCR |= configuration<<2;
-	}
-	#endif
-	#ifdef INT2_vect
-	else if(interruptNum == EXTINT2)
-	{
-		if(configuration == EXTINT_EDGE_RISING)
-			sbi(MCUCSR, ISC2);
-		else
-			cbi(MCUCSR, ISC2);
-	}
-	#endif
-	#endif
-	// need to handle a lot more cases
-	// and differences between processors.
-	// looking for clean way to do it...
-}
-
-//! Attach a user function to an external interrupt
-void extintAttach(uint8_t interruptNum, void (*userHandler)(void) )
+// TODO Not yet work extintAttach()
+void extintAttach(EXTINTTYPE interruptNum, void (*userHandler)(void), EXTINTMODE mode)
 {
 	// make sure the interrupt number is within bounds
 	if(interruptNum < EXTINT_NUM_INTERRUPTS)
@@ -89,6 +52,59 @@ void extintAttach(uint8_t interruptNum, void (*userHandler)(void) )
 		// the supplied user's function
 		ExtIntFunc[interruptNum] = userHandler;
 	}
+
+	if(interruptNum == EXTINT0)
+	{
+    #if defined(EICRA) && defined(ISC00) && defined(EIMSK)
+        EICRA =  (EICRA & ~( _BV(ISC00) | _BV(ISC01))  ) | (mode << ISC00);
+        EIMSK |= (1 << INT0);
+		#elif defined(MCUCR) && defined(ISC00) && defined(GICR)
+        MCUCR = (MCUCR & ~((1 << ISC00) | (1 << ISC01))) | (mode << ISC00);
+        GICR |= (1 << INT0);
+        #elif defined(MCUCR) && defined(ISC00) && defined(GIMSK)
+        MCUCR = (MCUCR & ~((1 << ISC00) | (1 << ISC01))) | (mode << ISC00);
+        GIMSK |= (1 << INT0);
+        #else
+        #error extintAttach not finished for this CPU (case 0)
+		#endif
+	} 
+#ifdef INT1_vect	
+	else if(interruptNum == EXTINT1)
+	{
+        #if defined(EICRA) && defined(ISC10) && defined(ISC11) && defined(EIMSK)
+        EICRA =  (EICRA & ~( _BV(ISC10) | _BV(ISC11))  ) | (mode << ISC10);
+        EIMSK |= (1 << INT1);
+        #elif defined(MCUCR) && defined(ISC10) && defined(ISC11) && defined(GICR)
+        MCUCR = (MCUCR & ~((1 << ISC10) | (1 << ISC11))) | (mode << ISC10);
+        GICR |= (1 << INT1);
+        #elif defined(MCUCR) && defined(ISC10) && defined(GIMSK) && defined(GIMSK)
+        MCUCR = (MCUCR & ~((1 << ISC10) | (1 << ISC11))) | (mode << ISC10);
+        GIMSK |= (1 << INT1);
+        #else
+        #warning extintAttach may need some more work for this cpu (case 1)
+        #endif
+	} 
+#endif
+#ifdef INT2_vect	
+	else if(interruptNum == EXTINT2)
+    {   
+        #if defined(EICRA) && defined(ISC20) && defined(ISC21) && defined(EIMSK)
+          EICRA = (EICRA & ~( _BV(ISC20) | _BV(ISC21))  ) | (mode << ISC20);
+          EIMSK |= (1 << INT2);
+        #elif defined(MCUCR) && defined(ISC20) && defined(ISC21) && defined(GICR)
+          MCUCR = (MCUCR & ~((1 << ISC20) | (1 << ISC21))) | (mode << ISC20);
+          GICR |= (1 << INT2);
+        #elif defined(MCUCR) && defined(ISC20) && defined(GIMSK) && defined(GIMSK)
+          MCUCR = (MCUCR & ~((1 << ISC20) | (1 << ISC21))) | (mode << ISC20);
+          GIMSK |= (1 << INT2);
+        #else
+        #warning extintAttach may need some more work for this cpu (case 1)
+        #endif
+	}
+#endif	
+	// need to handle a lot more cases
+	// and differences between processors.
+	// looking for clean way to do it...
 }
 
 //! Detach a user function from an external interrupt
@@ -101,6 +117,44 @@ void extintDetach(uint8_t interruptNum)
 		// the supplied user's function
 		ExtIntFunc[interruptNum] = 0;
 	}
+
+    if(interruptNum == EXTINT0) {
+		#if defined(EIMSK) && defined(INT0)
+		EIMSK &= ~(1 << INT0);
+		#elif defined(GICR) && defined(ISC00)
+		GICR &= ~(1 << INT0); // atmega32
+		#elif defined(GIMSK) && defined(INT0)
+		GIMSK &= ~(1 << INT0);
+		#else
+		#error extintDetach not finished for this cpu
+		#endif
+	} 
+#ifdef INT1_vect	
+	else if(interruptNum == EXTINT1) {
+		#if defined(EIMSK) && defined(INT1)
+		EIMSK &= ~(1 << INT1);
+		#elif defined(GICR) && defined(INT1)
+		GICR &= ~(1 << INT1); // atmega32
+		#elif defined(GIMSK) && defined(INT1)
+		GIMSK &= ~(1 << INT1);
+		#else
+		#warning extintDetach may need some more work for this cpu (case 1)
+		#endif
+	}
+#endif	 
+#ifdef INT2_vect	
+	else if(interruptNum == EXTINT2) {     
+		#if defined(EIMSK) && defined(INT2)
+		EIMSK &= ~(1 << INT2);
+		#elif defined(GICR) && defined(INT2)
+		GICR &= ~(1 << INT2); // atmega32
+		#elif defined(GIMSK) && defined(INT2)
+		GIMSK &= ~(1 << INT2);
+		#elif defined(INT2)
+		#warning extintDetach may need some more work for this cpu (case 2)
+		#endif
+	}
+#endif
 }
 
 //! Interrupt handler for INT0

@@ -190,18 +190,10 @@ int main()
 {
   // Initialize system upon power-up.
   serial_init(); // Setup serial baud rate and interrupts
-  // ;
-  // timer1Init();  // initialize the timer system
   sei();         // Enable interrupts
-
-  softSerialTest();
-
-
   // Write your code here
   // Start main loop. Processes program inputs and executes them.
   //protocol_main_loop();
-  // while (1)
-  //   ;
-
+  extintTest();
   return 0;
 }

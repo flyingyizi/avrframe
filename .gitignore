@@ -1,2 +1,9 @@
 *.bin
 *.ipch
+*.lst
+*.o
+*.o.d
+*.map
+*.hex
+*.elf
+

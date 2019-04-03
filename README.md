@@ -79,7 +79,7 @@ However you can make your own interrupts, say using Timer 1, like this:
       // set up Timer 1
       TCCR1A = 0;          // normal operation
       TCCR1B = bit(WGM12) | bit(CS10);   // CTC, no pre-scaling
-      OCR1A =  999;       // compare A register value (1000 * clock speed)
+      OCR1A =  999;       // compare A register value (1000 * clock speed)  TOP模式
       TIMSK1 = bit (OCIE1A);             // interrupt on Compare A Match
     }  // end of setup
 

@@ -194,6 +194,10 @@ int main()
   // Write your code here
   // Start main loop. Processes program inputs and executes them.
   //protocol_main_loop();
-  extintTest();
+  // extintTest();
+  // timer0_normal_test();
+  // timer0_CTC_auto_test();
+  // timer0_ForceOutputCompare_test();
+  timer0_CTC_ISR_test();
   return 0;
 }

@@ -104,7 +104,7 @@ void timer1SetPrescaler(PRESCALER_5 prescale)
 void timer2SetPrescaler(PRESCALER_7 prescale)
 {
 	// set prescaler on timer 2
-	TCCR2B = ((TCCR2B & ~TIMER_PRESCALER7_MASK) | prescale);
+	TCCR2B = ((TCCR2B & ~TIMERRTC_PRESCALE7_MASK) | prescale);
 }
 #endif
 
@@ -127,7 +127,7 @@ uint16_t timer2GetPrescaler(void)
 	// that timer2 is the RTC timer?
 
 	// get the current prescaler setting
-	return (pgm_read_word(TimerRTCPrescaleFactor + (TCCR2B & TIMER_PRESCALER7_MASK)));
+	return (pgm_read_word(TimerRTCPrescaleFactor + (TCCR2B & TIMERRTC_PRESCALE7_MASK)));
 }
 #endif
 
@@ -332,7 +332,7 @@ ISR(TIMER2_OVF_vect)
 }
 #endif
 
-#ifdef OCR0
+#if  defined(OCR0)
 // include support for Output Compare 0 for new AVR processors that support it
 //! Interrupt handler for OutputCompare0 match (OC0) interrupt(SIG_OUTPUT_COMPARE0)
 ISR(TIMER0_COMP_vect)
@@ -341,7 +341,22 @@ ISR(TIMER0_COMP_vect)
 	if (TimerIntFunc[TIMER0OUTCOMPARE_INT])
 		TimerIntFunc[TIMER0OUTCOMPARE_INT]();
 }
+#elif defined(OCR0A) && defined(OCR0B) 
+ISR(TIMER0_COMPA_vect)
+{
+	// if a user function is defined, execute it
+	if (TimerIntFunc[TIMER0OUTCOMPAREA_INT])
+		TimerIntFunc[TIMER0OUTCOMPAREA_INT]();
+}
+ISR(TIMER0_COMPB_vect)
+{
+	Timer0_b_cmpReg++;
+	// if a user function is defined, execute it
+	if (TimerIntFunc[TIMER0OUTCOMPAREB_INT])
+		TimerIntFunc[TIMER0OUTCOMPAREB_INT]();
+}
 #endif
+
 
 //! Interrupt handler for CutputCompare1A match (OC1A) interrupt(SIG_OUTPUT_COMPARE1A)
 ISR(TIMER1_COMPA_vect)

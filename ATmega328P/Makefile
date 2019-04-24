@@ -107,7 +107,7 @@ clean:
 	rm -rf $(OBJS_DIR)/*.o
 	rm -rf $(OBJS_DIR)/*.o.d
 	rm -rf $(OBJS_DIR)/*.lst
-	rm -rf $(BIN_DIR)/*
+	# rm -rf $(BIN_DIR)/*
 	rm -rf *.lst   
 
 -include $(DEPENDS)

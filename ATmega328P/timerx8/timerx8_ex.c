@@ -17,7 +17,7 @@
 //__AVR_ATmega16__
 //__AVR_ATmega328P__
 
-//http://maxembedded.com/2011/08/avr-timers-pwm-mode-part-i/comment-page-2/
+// http://maxembedded.com/2011/08/avr-timers-pwm-mode-part-i/comment-page-2/
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
@@ -26,8 +26,8 @@
 
 #include "timerx8.h"
 
-#define cbi(reg, bit) (reg &= ~(BV(bit)))
-#define sbi(reg, bit) (reg |= (BV(bit)))
+#define cbi(reg, bit) (reg &= ~(_BV(bit)))
+#define sbi(reg, bit) (reg |= (_BV(bit)))
 
 void timer0ClockSel(PRESCALER_5 prescale) {
   /**
@@ -63,7 +63,7 @@ void timer0ClockSel(PRESCALER_5 prescale) {
 void timer0Mode(uint8_t mode) {
   /**
    * atmega16
-   * Table 15-4.  
+   * Table 15-4.
    * Mode WGM01 WGM00 工作模式      TOP  OCR0的更新时间  TOV0的置位时刻
    * 0    0     0     普通         0xFF 立即更新        MAX
    * 1    0     1     PWM相位修正  0xFF TOP            BOTTOM
@@ -86,61 +86,47 @@ void timer0Mode(uint8_t mode) {
    */
   switch (mode) {
     case 0:
-      #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
-      cbi(TCCR1B, WGM02), cbi(TCCR0A, WGM01),cbi(TCCR0A, WGM00);
-      #elif defined(TCCR0)  // e.g. atmega16
+    #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
+      cbi(TCCR1B, WGM02), cbi(TCCR0A, WGM01), cbi(TCCR0A, WGM00);
+    #elif defined(TCCR0)  // e.g. atmega16
       cbi(TCCR0, WGM01), cbi(TCCR0, WGM00);
-      #endif
+    #endif
       break;
     case 1:
-      #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
-      cbi(TCCR1B, WGM02), cbi(TCCR0A, WGM01),sbi(TCCR0A, WGM00);
-      #elif defined(TCCR0)  // e.g. atmega16
+    #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
+      cbi(TCCR1B, WGM02), cbi(TCCR0A, WGM01), sbi(TCCR0A, WGM00);
+    #elif defined(TCCR0)  // e.g. atmega16
       cbi(TCCR0, WGM01), sbi(TCCR0, WGM00);
-      #endif
+    #endif
       break;
     case 2:
-      #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
-      cbi(TCCR1B, WGM02), sbi(TCCR0A, WGM01),cbi(TCCR0A, WGM00);
-      #elif defined(TCCR0)  // e.g. atmega16
+    #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
+      cbi(TCCR1B, WGM02), sbi(TCCR0A, WGM01), cbi(TCCR0A, WGM00);
+    #elif defined(TCCR0)  // e.g. atmega16
       sbi(TCCR0, WGM01), cbi(TCCR0, WGM00);
-      #endif
+    #endif
       break;
     case 3:
-      #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
-      cbi(TCCR1B, WGM02), sbi(TCCR0A, WGM01),sbi(TCCR0A, WGM00);
-      #elif defined(TCCR0)  // e.g. atmega16
+    #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
+      cbi(TCCR1B, WGM02), sbi(TCCR0A, WGM01), sbi(TCCR0A, WGM00);
+    #elif defined(TCCR0)  // e.g. atmega16
       sbi(TCCR0, WGM01), sbi(TCCR0, WGM00);
-      #endif
+    #endif
       break;
     #if defined(TCCR0B) && defined(TCCR0A)  // e.g. atmega328p
     case 4:
       break;
-	case 5:
-      sbi(TCCR1B, WGM02), cbi(TCCR0A, WGM01),sbi(TCCR0A, WGM00);
+    case 5:
+      sbi(TCCR1B, WGM02), cbi(TCCR0A, WGM01), sbi(TCCR0A, WGM00);
       break;
-	case 7:
-      sbi(TCCR1B, WGM02), sbi(TCCR0A, WGM01),sbi(TCCR0A, WGM00);
-	  break;
+    case 7:
+      sbi(TCCR1B, WGM02), sbi(TCCR0A, WGM01), sbi(TCCR0A, WGM00);
+      break;
     #endif
     default:
       break;
   }
-
-
 }
-
-// // Program ROM constants
-// // the prescale division values stored in order of timer control register
-// index
-// // STOP, CLK, CLK/8, CLK/64, CLK/256, CLK/1024
-// const unsigned short __attribute__((progmem)) TimerPrescaleFactor[] = {0, 1,
-// 8, 64, 256, 1024};
-// // the prescale division values stored in order of timer control register
-// index
-// // STOP, CLK, CLK/8, CLK/32, CLK/64, CLK/128, CLK/256, CLK/1024
-// const unsigned short __attribute__((progmem)) TimerRTCPrescaleFactor[] = {0,
-// 1, 8, 32, 64, 128, 256, 1024};
 
 /**
  * Table 15-4.
@@ -162,9 +148,31 @@ void timer0Mode(uint8_t mode) {
  * 14   Fast PWM                        ICR1   BOTTOM           TOP
  * 15   Fast PWM                        OCR1A  BOTTOM           TOP
  * **/
+/**
+ *
+ *Table 47.  atmega16
+ *model 工作模式         计数上限值TOP OCR1x更新时刻 TOV1置位时刻
+ *0     普通模式         0xFFFF       立即更        新MAX
+ *1     8位相位修正PWM   0x00FF       TOP           BOTTOM
+ *2     9位相位修正PWM   0x01FF       TOP           BOTTOM
+ *3     10位相位修正PWM   0x03FF      TOP           BOTTOM
+ *4     CTC              OCR1A       立即更新       MAX
+ *5     8位快速PWM       0x00FF      TOP            TOP
+ *6     9位快速PWM       0x01FF      TOP            TOP
+ *7     10位快速PWM      0x03FF      TOP            TOP
+ *8     相位与频率修正PWM ICR1        BOTTOM         BOTTOM
+ *9     相位与频率修正PWM OCR1A       BOTTOM         BOTTOM
+ *10    相位修正PWM      ICR1        TOP             BOTTOM
+ *11    相位修正PWM      OCR1A       TOP             BOTTOM
+ *12    CTC             ICR1        立即更新         MAX
+ *13    保留             –           –               –
+ *14    快速PWM          ICR1        TOP             TOP
+ *15    快速PWM          OCR1A       TOP             TOP
+ */
+
 void timer1Mode(uint8_t mode) {
   /**
-   * Table 15-4.
+   * Table 15-4.  atmega328p
    * Mode WGM13 WGM12  WGM11 WGM10
    * 0    0     0      0     0
    * 1    0     0      0     1
@@ -183,6 +191,28 @@ void timer1Mode(uint8_t mode) {
    * 14   1     1      1     0
    * 15   1     1      1     1
    * */
+  /**
+   *
+   *Table 47.  atmega16
+   *model WGM13 WGM12 WGM11 WGM10 工作模式
+   *0     0     0     0     0     普通模式
+   *1     0     0     0     1     8位相位修正PWM
+   *2     0     0     1     0     9位相位修正PWM
+   *3     0     0     1     1     10位相位修正PWM
+   *4     0     1     0     0     CTC
+   *5     0     1     0     1     8位快速PWM
+   *6     0     1     1     0     9位快速PWM
+   *7     0     1     1     1     10位快速PWM
+   *8     1     0     0     0     相位与频率修正PWM
+   *9     1     0     0     1     相位与频率修正PWM
+   *10    1     0     1     0     相位修正PWM
+   *11    1     0     1     1     相位修正PWM
+   *12    1     1     0     0     CTC
+   *13    1     1     0     1     保留
+   *14    1     1     1     0     快速PWM
+   *15    1     1     1     1     快速PWM
+   */
+
   switch (mode) {
     case 0:
       cbi(TCCR1B, WGM13), cbi(TCCR1B, WGM12), cbi(TCCR1A, WGM11),
@@ -268,6 +298,38 @@ void timer1ClockSel(PRESCALER_5 prescale) {
   TCCR1B = ((TCCR1B & ~TIMER_PRESCALER5_MASK) | prescale);
 };
 
+#if defined(OCR0) 
+void timer0COMP_INT_Init(PRESCALER_5 prescale ,uint8_t init_value, uint8_t compv)
+{
+	// initialize timer 0
+	timer0ClockSel(prescale); // set prescaler
+	TCNT0 = init_value;					// reset TCNT0  初值
+  OCR0 = compv;
+	sbi(TIMSK0,  OCIE0);					// enable TCNT0 overflow interrupt
+}
+#elif defined(OCR0A)  && defined(OCR0B)
+//timer0 A 比较中断初始化
+void timer0COMPA_INT_Init(PRESCALER_5 prescale ,uint8_t init_value, uint8_t compv)
+{
+	// initialize timer 0
+	timer0ClockSel(prescale); // set prescaler
+	TCNT0 = init_value;					// reset TCNT0  初值
+  OCR0A = compv;
+	sbi(TIMSK0, OCIE0A);					// enable TCNT0 overflow interrupt
+}
+
+//timer0 B 比较中断初始化
+void timer0COMPB_INT_Init(PRESCALER_5 prescale , uint8_t init_value, uint8_t compv)
+{
+	// initialize timer 0
+	timer0ClockSel(prescale); // set prescaler
+	TCNT0 = init_value;					// reset TCNT0  初值
+  OCR0B = compv;
+	sbi(TIMSK0, OCIE0B);					// enable TCNT0 overflow interrupt
+}
+#endif
+
+
 // #define TCCR1A _SFR_MEM8(0x80)
 // #define WGM10 0
 // #define WGM11 1
@@ -284,3 +346,15 @@ void timer1ClockSel(PRESCALER_5 prescale) {
 // #define WGM13 4
 // #define ICES1 6
 // #define ICNC1 7
+
+// // Program ROM constants
+// // the prescale division values stored in order of timer control register
+// index
+// // STOP, CLK, CLK/8, CLK/64, CLK/256, CLK/1024
+// const unsigned short __attribute__((progmem)) TimerPrescaleFactor[] = {0, 1,
+// 8, 64, 256, 1024};
+// // the prescale division values stored in order of timer control register
+// index
+// // STOP, CLK, CLK/8, CLK/32, CLK/64, CLK/128, CLK/256, CLK/1024
+// const unsigned short __attribute__((progmem)) TimerRTCPrescaleFactor[] = {0,
+// 1, 8, 32, 64, 128, 256, 1024};

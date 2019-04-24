@@ -21,34 +21,34 @@
 ///		to the AVR processors.  Functions include initialization, set
 /// prescaler, 		calibrated pause function (in milliseconds), attaching
 /// and
-/// detaching of 		user functions to interrupts, overflow counters, PWM.
-/// Arbitrary 		frequency generation has been moved to the Pulse Library.
+/// detaching of 		user functions to interrupts, overflow counters,
+/// PWM. Arbitrary 		frequency generation has been moved to the Pulse
+/// Library.
 ///
 /// \par About Timers
 ///		The Atmel AVR-series processors each contain at least one
 ///		hardware timer/counter.  Many of the processors contain 2 or 3
 ///		timers.  Generally speaking, a timer is a hardware counter
-/// inside 		the processor which counts at a rate related to the main CPU
-/// clock 		frequency.  Because the counter value increasing (counting up) at
-/// a precise rate, we can use it as a timer to create or measure
-/// precise delays, schedule events, or generate signals of a certain
+/// inside 		the processor which counts at a rate related to the main
+/// CPU clock 		frequency.  Because the counter value increasing
+/// (counting up) at a precise rate, we can use it as a timer to create or
+/// measure precise delays, schedule events, or generate signals of a certain
 /// frequency or pulse-width.
 /// \par
 ///		As an example, the ATmega163 processor has 3 timer/counters.
 ///		Timer0, Timer1, and Timer2 are 8, 16, and 8 bits wide
-/// respectively. 		This means that they overflow, or roll over back to
-/// zero, at a 		count value of 256 for 8bits or 65536 for 16bits.  A prescaler is
-/// avaiable for each timer, and the prescaler allows you to pre-divide
-/// the
-/// main CPU clock rate down to a slower speed before feeding it to 		the
-/// counting
-/// input of a timer.  For example, if the CPU clock 		frequency
-/// is 3.69MHz, and Timer0's prescaler is set to divide-by-8, 		then
-/// Timer0 will "tic" at 3690000/8
-///= 461250Hz.  Because Timer0 is 		an 8bit timer, it will count to 256
-///in just
-/// 256/461250Hz = 0.555ms. 		In fact, when it hits 255, it will overflow
-/// and start
+/// respectively. 		This means that they overflow, or roll over back
+/// to
+/// zero, at a 		count value of 256 for 8bits or 65536 for 16bits.  A
+/// prescaler is avaiable for each timer, and the prescaler allows you to
+/// pre-divide the main CPU clock rate down to a slower speed before feeding it
+/// to 		the counting input of a timer.  For example, if the CPU clock
+/// frequency is 3.69MHz, and Timer0's prescaler is set to divide-by-8,
+/// then Timer0 will "tic" at 3690000/8
+///= 461250Hz.  Because Timer0 is 		an 8bit timer, it will count to
+///256 in just
+/// 256/461250Hz = 0.555ms. 		In fact, when it hits 255, it will
+/// overflow and start
 /// again at 		zero.  In this case, Timer0 will overflow 461250/256 =
 /// 1801.76 		times per second.
 /// \par
@@ -59,7 +59,7 @@
 /// after 		execution, then subtract (after-before) = time elapsed.
 /// Or we can 		enable the overflow interrupt which goes off every time
 /// T0 		overflows and count out longer delays (multiple overflows), or
-///execute a special periodic function at every overflow.
+/// execute a special periodic function at every overflow.
 /// \par
 ///		The other timers (Timer1 and Timer2) offer all the abilities of
 ///		Timer0 and many more features.  Both T1 and T2 can operate as
@@ -104,50 +104,53 @@
 // 8bitoverflow = rate at which the timer overflows 8bits (or reaches 256)
 // 16bit [overflow] = rate at which the timer overflows 16bits (65536)
 //
-// overflows can be used to generate periodic interrupts
-//
-// for 8MHz crystal
-// 0 = STOP (Timer not counting)
-// 1 = CLOCK		tics= 8MHz			8bitoverflow= 31250Hz
-// 16bit= 122.070Hz
-// 2 = CLOCK/8		tics= 1MHz			8bitoverflow= 3906.25Hz
-// 16bit=  15.259Hz
-// 3 = CLOCK/64		tics= 125kHz		8bitoverflow=  488.28Hz
-// 16bit=   1.907Hz 4 = CLOCK/256	tics= 31250Hz		8bitoverflow=
-// 122.07Hz		16bit=	0.477Hz 5 = CLOCK/1024	tics= 7812.5Hz
-// 8bitoverflow=   30.52Hz		16bit=   0.119Hz 6 = External Clock on
-// T(x) pin (falling edge) 7 = External Clock on T(x) pin (rising edge)
-
-// for 4MHz crystal
-// 0 = STOP (Timer not counting)
-// 1 = CLOCK		tics= 4MHz			8bitoverflow= 15625Hz
-// 16bit=  61.035Hz 2 = CLOCK/8		tics= 500kHz		8bitoverflow=
-// 1953.125Hz	16bit=   7.629Hz 3 = CLOCK/64		tics= 62500Hz
-// 8bitoverflow=  244.141Hz	16bit=   0.954Hz 4 = CLOCK/256	tics= 15625Hz
-// 8bitoverflow=   61.035Hz	16bit=   0.238Hz 5 = CLOCK/1024	tics= 3906.25Hz
-// 8bitoverflow=   15.259Hz	16bit=   0.060Hz 6 = External Clock on T(x) pin
-// (falling edge) 7 = External Clock on T(x) pin (rising edge)
-
-// for 3.69MHz crystal
-// 0 = STOP (Timer not counting)
-// 1 = CLOCK		tics= 3.69MHz		8bitoverflow= 14414Hz
-// 16bit=  56.304Hz 2 = CLOCK/8		tics= 461250Hz		8bitoverflow=
-// 1801.758Hz	16bit=   7.038Hz 3 = CLOCK/64		tics= 57625.25Hz
-// 8bitoverflow=  225.220Hz	16bit=   0.880Hz 4 = CLOCK/256	tics=
-// 14414.063Hz	8bitoverflow=   56.305Hz	16bit=   0.220Hz 5 = CLOCK/1024
-// tics=  3603.516Hz	8bitoverflow=   14.076Hz	16bit=   0.055Hz 6 =
-// External Clock on T(x) pin (falling edge) 7 = External Clock on T(x) pin
-// (rising edge)
-
-// for 32.768KHz crystal on timer 2 (use for real-time clock)
-// 0 = STOP
-// 1 = CLOCK		tics= 32.768kHz		8bitoverflow= 128Hz
-// 2 = CLOCK/8		tics= 4096kHz		8bitoverflow=  16Hz
-// 3 = CLOCK/32		tics= 1024kHz		8bitoverflow=   4Hz
-// 4 = CLOCK/64		tics= 512Hz			8bitoverflow=   2Hz
-// 5 = CLOCK/128	tics= 256Hz			8bitoverflow=   1Hz
-// 6 = CLOCK/256	tics= 128Hz			8bitoverflow=   0.5Hz
-// 7 = CLOCK/1024	tics= 32Hz			8bitoverflow=   0.125Hz
+/**
+ *
+ *overflows can be used to generate periodic interrupts
+ *for 8MHz crystal
+ *0 = STOP (Timer not counting)
+ *1 = CLOCK		tics= 8MHz			    8bitoverflow= 31250Hz
+ *16bit= 122.070Hz
+ *2 = CLOCK/8		tics= 1MHz			  8bitoverflow= 3906.25Hz
+ *16bit=  15.259Hz
+ *3 = CLOCK/64		tics= 125kHz		8bitoverflow=  488.28Hz
+ *16bit=   1.907Hz 4 = CLOCK/256	tics= 31250Hz		8bitoverflow=
+ *122.07Hz		16bit=	0.477Hz 5 = CLOCK/1024	tics= 7812.5Hz
+ *8bitoverflow=   30.52Hz		16bit=   0.119Hz 6 = External Clock on
+ *T(x) pin (falling edge) 7 = External Clock on T(x) pin (rising edge)
+ *
+ *for 4MHz crystal
+ *0 = STOP (Timer not counting)
+ *1 = CLOCK		tics= 4MHz			8bitoverflow= 15625Hz
+ *16bit=  61.035Hz 2 = CLOCK/8		tics= 500kHz		8bitoverflow=
+ *1953.125Hz	16bit=   7.629Hz 3 = CLOCK/64		tics= 62500Hz
+ *8bitoverflow=  244.141Hz	16bit=   0.954Hz 4 = CLOCK/256	tics= 15625Hz
+ *8bitoverflow=   61.035Hz	16bit=   0.238Hz 5 = CLOCK/1024	tics= 3906.25Hz
+ *8bitoverflow=   15.259Hz	16bit=   0.060Hz 6 = External Clock on T(x) pin
+ *(falling edge) 7 = External Clock on T(x) pin (rising edge)
+ *
+ *for 3.69MHz crystal
+ *0 = STOP (Timer not counting)
+ *1 = CLOCK		tics= 3.69MHz		8bitoverflow= 14414Hz
+ *16bit=  56.304Hz 2 = CLOCK/8		tics= 461250Hz		8bitoverflow=
+ *1801.758Hz	16bit=   7.038Hz 3 = CLOCK/64		tics= 57625.25Hz
+ *8bitoverflow=  225.220Hz	16bit=   0.880Hz 4 = CLOCK/256	tics=
+ *14414.063Hz	8bitoverflow=   56.305Hz	16bit=   0.220Hz 5 = CLOCK/1024
+ *tics=  3603.516Hz	8bitoverflow=   14.076Hz	16bit=   0.055Hz 6 =
+ *External Clock on T(x) pin (falling edge) 7 = External Clock on T(x) pin
+ *(rising edge)
+ *
+ *for 32.768KHz crystal on timer 2 (use for real-time clock)
+ *0 = STOP
+ *1 = CLOCK		tics= 32.768kHz		8bitoverflow= 128Hz
+ *2 = CLOCK/8		tics= 4096kHz		8bitoverflow=  16Hz
+ *3 = CLOCK/32		tics= 1024kHz		8bitoverflow=   4Hz
+ *4 = CLOCK/64		tics= 512Hz			8bitoverflow=   2Hz
+ *5 = CLOCK/128	tics= 256Hz			8bitoverflow=   1Hz
+ *6 = CLOCK/256	tics= 128Hz			8bitoverflow=   0.5Hz
+ *7 = CLOCK/1024	tics= 32Hz			8bitoverflow=   0.125Hz
+ *
+ */
 
 typedef enum PRESCALER_5T {
   // Table 15-5. Clock Select Bit Description
@@ -202,9 +205,13 @@ typedef enum TIMERINTTYPET {
   /*#define*/ TIMER1INPUTCAPTURE_INT = 4,
   /*#define*/ TIMER2OVERFLOW_INT = 5,
   /*#define*/ TIMER2OUTCOMPARE_INT = 6,
-#ifdef OCR0  // for processors that support output compare on Timer0
+#if defined(OCR0)  // for processors that support output compare on Timer0
   /*#define*/ TIMER0OUTCOMPARE_INT = 7,
   /*#define*/ TIMER_NUM_INTERRUPTS = 8
+#elif defined(OCR0A)  && defined(OCR0B)
+  TIMER0OUTCOMPAREA_INT = 7,
+  TIMER0OUTCOMPAREB_INT = 8,
+  TIMER_NUM_INTERRUPTS = 9
 #else
   /*#define*/ TIMER_NUM_INTERRUPTS = 7
 #endif
@@ -251,6 +258,18 @@ typedef enum TIMERINTTYPET {
  *              Clear OC0A on Compare Match when down-counting.
  */
 
+#if defined(OCR0) 
+//timer0 比较中断初始化
+void timer0COMP_INT_Init(PRESCALER_5 prescale ,uint8_t init_value, uint8_t compv);
+#elif defined(OCR0A)  && defined(OCR0B)
+//timer0 A 比较中断初始化
+void timer0COMPA_INT_Init(PRESCALER_5 prescale ,uint8_t init_value, uint8_t compv);
+//timer0 B 比较中断初始化
+void timer0COMPB_INT_Init(PRESCALER_5 prescale , uint8_t init_value, uint8_t compv);
+#endif
+
+
+
 //! initializes timing system (all timers)
 // runs all timer init functions
 // sets all timers to default prescale values #defined in systimer.c
@@ -283,15 +302,17 @@ uint16_t timer2GetPrescaler(void);              ///< get timer2 prescaler
 // TimerAttach and Detach commands
 //		These functions allow the attachment (or detachment) of any user
 // function 		to a timer interrupt.  "Attaching" one of your own
-// functions to a timer 		interrupt means that it will be called whenever
-// that interrupt happens. 		Using attach is better than rewriting the actual
-//INTERRUPT()
-// function 		because your code will still work and be compatible if the
-// timer library 		is updated.  Also, using Attach allows your code
+// functions to a timer 		interrupt means that it will be called
+// whenever that interrupt happens. 		Using attach is better than
+// rewriting the actual
+// INTERRUPT()
+// function 		because your code will still work and be compatible if
+// the timer library 		is updated.  Also, using Attach allows your code
 // and any predefined
-// timer 		code to work together and at the same time.  (ie. "attaching"
-// your own 		function to the timer0 overflow doesn't prevent timerPause from
-// working, 		but rather allows you to share the interrupt.)
+// timer 		code to work together and at the same time.  (ie.
+// "attaching"
+// your own 		function to the timer0 overflow doesn't prevent timerPause
+// from working, 		but rather allows you to share the interrupt.)
 //
 //		timerAttach(TIMER1OVERFLOW_INT, myOverflowFunction);
 //		timerDetach(TIMER1OVERFLOW_INT)
@@ -300,8 +321,8 @@ uint16_t timer2GetPrescaler(void);              ///< get timer2 prescaler
 // therefore 		execute, whenever an overflow on timer1 occurs.
 // timerDetach removes
 // the 		association and executes no user function when the interrupt
-// occurs. 		myOverflowFunction must be defined with no return value and no
-// arguments:
+// occurs. 		myOverflowFunction must be defined with no return value and
+// no arguments:
 //
 //		void myOverflowFunction(void) { ... }
 
@@ -357,13 +378,13 @@ long timer2GetOverflowCount(void);    ///< read timer0's overflow counter
 /// \param bitRes	indicates the period/resolution to use for PWM output in
 /// timer bits.
 ///						Must be either 8, 9, or 10 bits
-///corresponding to PWM periods of 256, 512, or 1024 timer tics.
+/// corresponding to PWM periods of 256, 512, or 1024 timer tics.
 void timer1PWMInit(uint8_t bitRes);
 
 /// Enter PWM Mode on timer1 with a specific top-count value.
 /// \param topcount	indicates the desired PWM period in timer tics.
 ///						Can be a number between 1 and
-///65535 (16-bit).
+/// 65535 (16-bit).
 void timer1PWMInitICR(uint16_t topcount);
 
 /// Turn off all timer1 PWM output and set timer mode to normal.
@@ -384,5 +405,12 @@ void timer1PWMBSet(
 //@}
 
 // Pulse generation commands have been moved to the pulse.c library
+
+
+void timer0Mode(uint8_t mode);
+void timer1Mode(uint8_t mode);
+void timer0ClockSel(PRESCALER_5 prescale);
+void timer1ClockSel(PRESCALER_5 prescale);
+
 
 #endif
